@@ -1,4 +1,6 @@
 import streamlit as st
+# ✅ Health check (KEEP THIS AT TOP)
+st.markdown("<!-- health-check -->")
 import os
 import shutil
 
@@ -8,8 +10,7 @@ from llm_router import get_llm
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
-# ✅ Health check (KEEP THIS AT TOP)
-st.markdown("<!-- health-check -->")
+
 
 
 # ---------- SESSION STATE ----------
@@ -161,6 +162,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 
 
