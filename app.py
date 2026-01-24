@@ -8,6 +8,9 @@ from llm_router import get_llm
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
+# ✅ Health check (KEEP THIS AT TOP)
+st.markdown("<!-- health-check -->")
+
 
 # ---------- SESSION STATE ----------
 if "vectordb_ready" not in st.session_state:
@@ -158,6 +161,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 
 
