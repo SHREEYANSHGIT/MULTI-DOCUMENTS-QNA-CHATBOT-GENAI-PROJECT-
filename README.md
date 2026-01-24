@@ -127,4 +127,4 @@ Create file `.streamlit/secrets.toml`
 
 © 2026 Shreeyansh Asati  
 All rights reserved.
-============================================================
+
