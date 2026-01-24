@@ -109,43 +109,8 @@ else:
     st.info("⬅ Upload data and click **Process Data**")
 
 
+
 # ---------- FOOTER ----------
-
-
-# st.markdown("---")
-
-# st.markdown(
-#     """
-
-#     <style>
-#     .footer {
-#         position: fixed;
-#         left: 0;
-#         bottom: 0;
-#         width: 100%;
-#         background-color: transparent;
-#         color: #B3B3B3;
-#         text-align: center;
-#         font-size: 16px;
-#         padding: 8px;
-#     }
-#     </style>
-
-#     <div class="footer">
-#         2026 © Developed by <b>Shreeyansh Asati</b> &nbsp;|&nbsp;
-#         <a href="https://www.linkedin.com/in/shreeyansh-asati-18shreey/" target="_blank" style="text-decoration:none;">
-#             🔗 LinkedIn
-#         </a>
-#         &nbsp;|&nbsp;
-#         <a href="https://github.com/SHREEYANSHGIT" target="_blank" style="text-decoration:none;">
-#             💻 GitHub
-#         </a>
-#     </div>
-#     """,
-#     unsafe_allow_html=True
-# )
-
-# ---------- FOOTER (SAFE FOR STREAMLIT CHAT) ----------
 st.markdown(
     """
     <style>
@@ -193,5 +158,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 
