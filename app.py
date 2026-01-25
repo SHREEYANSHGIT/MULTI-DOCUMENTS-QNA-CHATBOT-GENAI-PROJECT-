@@ -1,7 +1,4 @@
 import streamlit as st
-import os
-import shutil
-
 from ingest import load_files, create_vector_db
 from llm_router import get_llm
 
@@ -10,16 +7,14 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 
 
 # ---------- SESSION STATE ----------
-if "vectordb_ready" not in st.session_state:
-    st.session_state.vectordb_ready = False
-
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+if "ready" not in st.session_state:
+    st.session_state.ready = False
 
 
 # ---------- PAGE ----------
 st.set_page_config(page_title="Multi-File RAG Chatbot", layout="wide")
 st.title("📂 Multi-File RAG Chatbot 🤖")
+st.caption("Developed by Shreeyansh Asati")
 
 
 # ---------- SIDEBAR ----------
@@ -47,28 +42,21 @@ with st.sidebar:
 
     if st.button("🚀 Process Data"):
         if not files and not manual_text.strip():
-            st.warning("Upload files or paste text")
+            st.warning("Upload files or paste text.")
         else:
-            with st.spinner("Creating new embeddings..."):
-
-                # 🔥 FULL RESET
-                if os.path.exists("chroma_db"):
-                    shutil.rmtree("chroma_db", ignore_errors=True)
-
+            with st.spinner("Processing documents..."):
                 try:
                     docs = load_files(files, manual_text)
                     create_vector_db(docs)
-                except ValueError as e:
+                    st.session_state.ready = True
+                    st.success("✅ New data indexed. Old data removed.")
+                except Exception as e:
                     st.error(str(e))
                     st.stop()
 
-                st.session_state.chat_history = []
-                st.session_state.vectordb_ready = True
-                st.success("✅ New data indexed successfully")
-
 
 # ---------- CHAT ----------
-if st.session_state.vectordb_ready:
+if st.session_state.ready:
 
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
@@ -99,41 +87,9 @@ Question:
 {query}
 """
 
-        response = llm.invoke(prompt)
-        answer = response.content
-
+        answer = llm.invoke(prompt).content
         st.chat_message("user").write(query)
         st.chat_message("assistant").write(answer)
 
 else:
     st.info("⬅ Upload files and click **Process Data**")
-
-
-# ---------- FOOTER ----------
-st.markdown(
-    """
-    <style>
-    .block-container { padding-bottom: 80px; }
-    .footer {
-        position: fixed;
-        bottom: 0;
-        width: 100%;
-        text-align: center;
-        font-size: 14px;
-        color: #B3B3B3;
-    }
-    .footer a {
-        color: #1DA1F2;
-        margin: 0 8px;
-        text-decoration: none;
-    }
-    </style>
-
-    <div class="footer">
-        © 2026 <b>Shreeyansh Asati</b> |
-        <a href="https://www.linkedin.com/in/shreeyansh-asati-18shreey/" target="_blank">LinkedIn</a> |
-        <a href="https://github.com/SHREEYANSHGIT" target="_blank">GitHub</a>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
