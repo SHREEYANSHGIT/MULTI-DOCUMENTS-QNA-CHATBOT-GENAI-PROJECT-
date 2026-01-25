@@ -35,4 +35,4 @@ def get_llm(model_name: str):
             temperature=0.15
         )
 
-    raise ValueError("Unknown model selected")
+    raise ValueError("Invalid model selection")
