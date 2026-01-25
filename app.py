@@ -1,5 +1,4 @@
 import streamlit as st
-
 import os
 import shutil
 
@@ -8,8 +7,6 @@ from llm_router import get_llm
 
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
-
-
 
 
 # ---------- SESSION STATE ----------
@@ -23,7 +20,7 @@ if "chat_history" not in st.session_state:
 # ---------- PAGE ----------
 st.set_page_config(page_title="Multi-File RAG Chatbot", layout="wide")
 st.title("📂 Multi-File RAG Chatbot 🤖")
-st.markdown("Developed by : Shreeyansh Asati")
+st.markdown("**Developed by : Shreeyansh Asati**")
 
 
 # ---------- SIDEBAR ----------
@@ -55,17 +52,23 @@ with st.sidebar:
         else:
             with st.spinner("Creating new embeddings..."):
 
-                # 🔥 FULLY DELETE OLD EMBEDDINGS
+                # 🔥 FULLY DELETE OLD EMBEDDINGS (SAFE PLACE)
                 if os.path.exists("chroma_db"):
                     shutil.rmtree("chroma_db", ignore_errors=True)
 
-                docs = load_files(files, manual_text)
-                create_vector_db(docs)
+                try:
+                    docs = load_files(files, manual_text)
+                    create_vector_db(docs)
+
+                except ValueError as e:
+                    st.error(f"❌ {e}")
+                    st.session_state.vectordb_ready = False
+                    st.stop()
 
                 st.session_state.chat_history = []
                 st.session_state.vectordb_ready = True
 
-                st.success("✅ Document processed, now you can ask questions.")
+                st.success("✅ Document processed. You can now ask questions.")
 
 
 # ---------- CHAT ----------
@@ -87,6 +90,10 @@ if st.session_state.vectordb_ready:
 
     if query:
         docs = retriever.invoke(query)
+
+        if not docs:
+            st.warning("No relevant context found.")
+            st.stop()
 
         context = "\n\n".join(doc.page_content for doc in docs)
 
@@ -112,14 +119,12 @@ else:
     st.info("⬅ Upload data and click **Process Data**")
 
 
-
 # ---------- FOOTER ----------
 st.markdown(
     """
     <style>
-    /* Add bottom padding so footer doesn't overlap chat input */
     .block-container {
-        padding-bottom: 80px;
+        padding-bottom: 90px;
     }
 
     .footer {
@@ -135,16 +140,15 @@ st.markdown(
         z-index: 100;
     }
 
-    /* Blue links */
     .footer a {
-        color: #1DA1F2;   /* Blue */
+        color: #1DA1F2;
         text-decoration: none;
         margin: 0 8px;
         font-weight: 500;
     }
 
     .footer a:hover {
-        color: #0A66C2;   /* Darker blue on hover */
+        color: #0A66C2;
         text-decoration: underline;
     }
     </style>
@@ -161,9 +165,3 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
-
-
-
-
-
