@@ -1,6 +1,5 @@
 import streamlit as st
-# ✅ Health check (KEEP THIS AT TOP)
-st.markdown("<!-- health-check -->")
+
 import os
 import shutil
 
@@ -162,6 +161,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 
 
