@@ -1,4 +1,5 @@
 import os
+import uuid
 import tempfile
 
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
@@ -11,20 +12,26 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 def load_files(files, manual_text):
     documents = []
 
+    # Use temp directory → auto cleaned → no file collision
     with tempfile.TemporaryDirectory() as tmpdir:
         for file in files:
             path = os.path.join(tmpdir, file.name)
+
             with open(path, "wb") as f:
                 f.write(file.getbuffer())
 
             if file.name.endswith(".pdf"):
                 documents.extend(PyPDFLoader(path).load())
+
             elif file.name.endswith(".txt"):
                 documents.extend(TextLoader(path, encoding="utf-8").load())
 
     if manual_text.strip():
         documents.append(
-            Document(page_content=manual_text, metadata={"source": "manual_input"})
+            Document(
+                page_content=manual_text,
+                metadata={"source": "manual_input"}
+            )
         )
 
     return documents
@@ -42,7 +49,7 @@ def create_vector_db(documents):
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
-    # 🔥 IN-MEMORY CHROMA (NO PERSIST)
+    # ✅ IN-MEMORY CHROMA (NO PERSISTENCE)
     vectordb = Chroma.from_documents(
         documents=chunks,
         embedding=embeddings,
