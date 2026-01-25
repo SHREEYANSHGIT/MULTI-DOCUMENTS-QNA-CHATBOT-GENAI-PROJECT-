@@ -1,13 +1,17 @@
 import streamlit as st
-import uuid
+import os
+import shutil
 
 from ingest import load_files, create_vector_db
 from llm_router import get_llm
 
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
+
 
 # ---------- SESSION STATE ----------
-if "vectordb" not in st.session_state:
-    st.session_state.vectordb = None
+if "vectordb_ready" not in st.session_state:
+    st.session_state.vectordb_ready = False
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
@@ -16,7 +20,7 @@ if "chat_history" not in st.session_state:
 # ---------- PAGE ----------
 st.set_page_config(page_title="Multi-File RAG Chatbot", layout="wide")
 st.title("📂 Multi-File RAG Chatbot 🤖")
-st.markdown("Developed by **Shreeyansh Asati**")
+st.markdown("Developed by : Shreeyansh Asati")
 
 
 # ---------- SIDEBAR ----------
@@ -43,25 +47,37 @@ with st.sidebar:
     )
 
     if st.button("🚀 Process Data"):
-
         if not files and not manual_text.strip():
             st.warning("Upload files or paste text.")
         else:
-            with st.spinner("Creating fresh embeddings..."):
+            with st.spinner("Creating new embeddings..."):
 
-                st.session_state.chat_history = []
+                # 🔥 FULLY DELETE OLD EMBEDDINGS
+                if os.path.exists("chroma_db"):
+                    shutil.rmtree("chroma_db", ignore_errors=True)
 
                 docs = load_files(files, manual_text)
-                vectordb = create_vector_db(docs)   # 👈 in-memory only
+                create_vector_db(docs)
 
-                st.session_state.vectordb = vectordb
-                st.success("✅ Documents processed (fresh session)")
+                st.session_state.chat_history = []
+                st.session_state.vectordb_ready = True
+
+                st.success("✅ Document processed, now you can ask questions.")
 
 
 # ---------- CHAT ----------
-if st.session_state.vectordb:
+if st.session_state.vectordb_ready:
 
-    retriever = st.session_state.vectordb.as_retriever(search_kwargs={"k": 4})
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
+
+    vectordb = Chroma(
+        persist_directory="chroma_db",
+        embedding_function=embeddings
+    )
+
+    retriever = vectordb.as_retriever(search_kwargs={"k": 4})
     llm = get_llm(llm_choice)
 
     query = st.chat_input("Ask your question")
@@ -69,15 +85,11 @@ if st.session_state.vectordb:
     if query:
         docs = retriever.invoke(query)
 
-        if not docs:
-            answer = "❌ No such context found in the uploaded files."
-        else:
-            context = "\n\n".join(d.page_content for d in docs)
+        context = "\n\n".join(doc.page_content for doc in docs)
 
-            prompt = f"""
-Answer ONLY from the context.
-If the answer is not present, say:
-"No such context found in the uploaded files."
+        prompt = f"""
+You are a helpful assistant.
+Answer ONLY from the context below.
 
 Context:
 {context}
@@ -85,10 +97,101 @@ Context:
 Question:
 {query}
 """
-            answer = llm.invoke(prompt).content
 
+        response = llm.invoke(prompt)
+        answer = response.content
+
+        st.session_state.chat_history.append((query, answer))
         st.chat_message("user").write(query)
         st.chat_message("assistant").write(answer)
 
 else:
-    st.info("⬅ Upload files and click **Process Data**")
+    st.info("⬅ Upload data and click **Process Data**")
+
+
+# ---------- FOOTER ----------
+
+
+# st.markdown("---")
+
+# st.markdown(
+#     """
+
+#     <style>
+#     .footer {
+#         position: fixed;
+#         left: 0;
+#         bottom: 0;
+#         width: 100%;
+#         background-color: transparent;
+#         color: #B3B3B3;
+#         text-align: center;
+#         font-size: 16px;
+#         padding: 8px;
+#     }
+#     </style>
+
+#     <div class="footer">
+#         2026 © Developed by <b>Shreeyansh Asati</b> &nbsp;|&nbsp;
+#         <a href="https://www.linkedin.com/in/shreeyansh-asati-18shreey/" target="_blank" style="text-decoration:none;">
+#             🔗 LinkedIn
+#         </a>
+#         &nbsp;|&nbsp;
+#         <a href="https://github.com/SHREEYANSHGIT" target="_blank" style="text-decoration:none;">
+#             💻 GitHub
+#         </a>
+#     </div>
+#     """,
+#     unsafe_allow_html=True
+# )
+
+# ---------- FOOTER (SAFE FOR STREAMLIT CHAT) ----------
+st.markdown(
+    """
+    <style>
+    /* Add bottom padding so footer doesn't overlap chat input */
+    .block-container {
+        padding-bottom: 80px;
+    }
+
+    .footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        background-color: rgba(0,0,0,0);
+        color: #B3B3B3;
+        text-align: center;
+        font-size: 16px;
+        padding: 10px;
+        z-index: 100;
+    }
+
+    /* Blue links */
+    .footer a {
+        color: #1DA1F2;   /* Blue */
+        text-decoration: none;
+        margin: 0 8px;
+        font-weight: 500;
+    }
+
+    .footer a:hover {
+        color: #0A66C2;   /* Darker blue on hover */
+        text-decoration: underline;
+    }
+    </style>
+
+    <div class="footer">
+        © 2026 <b>Developed by Shreeyansh Asati</b> |
+        <a href="https://www.linkedin.com/in/shreeyansh-asati-18shreey/" target="_blank">
+            🔗 LinkedIn
+        </a> |
+        <a href="https://github.com/SHREEYANSHGIT" target="_blank">
+            💻 GitHub
+        </a>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+

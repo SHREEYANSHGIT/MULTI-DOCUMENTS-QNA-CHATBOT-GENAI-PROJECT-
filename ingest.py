@@ -1,6 +1,5 @@
 import os
-import uuid
-import tempfile
+import pandas as pd
 
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_core.documents import Document
@@ -12,19 +11,17 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 def load_files(files, manual_text):
     documents = []
 
-    # Use temp directory → auto cleaned → no file collision
-    with tempfile.TemporaryDirectory() as tmpdir:
-        for file in files:
-            path = os.path.join(tmpdir, file.name)
+    for file in files:
+        path = os.path.join(os.getcwd(), file.name)
+        with open(path, "wb") as f:
+            f.write(file.getbuffer())
 
-            with open(path, "wb") as f:
-                f.write(file.getbuffer())
+        if path.endswith(".pdf"):
+            documents.extend(PyPDFLoader(path).load())
 
-            if file.name.endswith(".pdf"):
-                documents.extend(PyPDFLoader(path).load())
+        elif path.endswith(".txt"):
+            documents.extend(TextLoader(path, encoding="utf-8").load())
 
-            elif file.name.endswith(".txt"):
-                documents.extend(TextLoader(path, encoding="utf-8").load())
 
     if manual_text.strip():
         documents.append(
@@ -49,11 +46,10 @@ def create_vector_db(documents):
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
-    # ✅ IN-MEMORY CHROMA (NO PERSISTENCE)
     vectordb = Chroma.from_documents(
         documents=chunks,
         embedding=embeddings,
-        collection_name=f"rag_{uuid.uuid4().hex}"
+        persist_directory="chroma_db"
     )
 
-    return vectordb
+    vectordb.persist()
