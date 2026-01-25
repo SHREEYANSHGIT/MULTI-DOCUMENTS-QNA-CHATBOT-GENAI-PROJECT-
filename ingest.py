@@ -1,4 +1,5 @@
 import os
+import uuid
 import pandas as pd
 
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
@@ -16,12 +17,21 @@ def load_files(files, manual_text):
         with open(path, "wb") as f:
             f.write(file.getbuffer())
 
-        if path.endswith(".pdf"):
+        if path.lower().endswith(".pdf"):
             documents.extend(PyPDFLoader(path).load())
 
-        elif path.endswith(".txt"):
+        elif path.lower().endswith(".txt"):
             documents.extend(TextLoader(path, encoding="utf-8").load())
 
+        elif path.lower().endswith(".xlsx"):
+            df = pd.read_excel(path)
+            if not df.empty:
+                documents.append(
+                    Document(
+                        page_content=df.to_string(index=False),
+                        metadata={"source": file.name}
+                    )
+                )
 
     if manual_text.strip():
         documents.append(
@@ -35,6 +45,10 @@ def load_files(files, manual_text):
 
 
 def create_vector_db(documents):
+    # 🚨 CRITICAL SAFETY CHECK
+    if not documents:
+        raise ValueError("No valid documents found to embed.")
+
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=800,
         chunk_overlap=120
@@ -42,14 +56,21 @@ def create_vector_db(documents):
 
     chunks = splitter.split_documents(documents)
 
+    if not chunks:
+        raise ValueError("Document splitting resulted in empty chunks.")
+
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
+    # 🔥 UNIQUE COLLECTION PER RUN (STREAMLIT SAFE)
+    collection_name = f"collection_{uuid.uuid4().hex}"
+
     vectordb = Chroma.from_documents(
         documents=chunks,
         embedding=embeddings,
-        persist_directory="chroma_db"
+        collection_name=collection_name,
+        persist_directory="./chroma_db"
     )
 
     vectordb.persist()
