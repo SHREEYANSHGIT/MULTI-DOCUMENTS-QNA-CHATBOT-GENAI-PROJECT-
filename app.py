@@ -20,7 +20,6 @@ if "chat_history" not in st.session_state:
 # ---------- PAGE ----------
 st.set_page_config(page_title="Multi-File RAG Chatbot", layout="wide")
 st.title("📂 Multi-File RAG Chatbot 🤖")
-st.markdown("**Developed by : Shreeyansh Asati**")
 
 
 # ---------- SIDEBAR ----------
@@ -48,27 +47,24 @@ with st.sidebar:
 
     if st.button("🚀 Process Data"):
         if not files and not manual_text.strip():
-            st.warning("Upload files or paste text.")
+            st.warning("Upload files or paste text")
         else:
             with st.spinner("Creating new embeddings..."):
 
-                # 🔥 FULLY DELETE OLD EMBEDDINGS (SAFE PLACE)
+                # 🔥 FULL RESET
                 if os.path.exists("chroma_db"):
                     shutil.rmtree("chroma_db", ignore_errors=True)
 
                 try:
                     docs = load_files(files, manual_text)
                     create_vector_db(docs)
-
                 except ValueError as e:
-                    st.error(f"❌ {e}")
-                    st.session_state.vectordb_ready = False
+                    st.error(str(e))
                     st.stop()
 
                 st.session_state.chat_history = []
                 st.session_state.vectordb_ready = True
-
-                st.success("✅ Document processed. You can now ask questions.")
+                st.success("✅ New data indexed successfully")
 
 
 # ---------- CHAT ----------
@@ -90,11 +86,6 @@ if st.session_state.vectordb_ready:
 
     if query:
         docs = retriever.invoke(query)
-
-        if not docs:
-            st.warning("No relevant context found.")
-            st.stop()
-
         context = "\n\n".join(doc.page_content for doc in docs)
 
         prompt = f"""
@@ -111,56 +102,37 @@ Question:
         response = llm.invoke(prompt)
         answer = response.content
 
-        st.session_state.chat_history.append((query, answer))
         st.chat_message("user").write(query)
         st.chat_message("assistant").write(answer)
 
 else:
-    st.info("⬅ Upload data and click **Process Data**")
+    st.info("⬅ Upload files and click **Process Data**")
 
 
 # ---------- FOOTER ----------
 st.markdown(
     """
     <style>
-    .block-container {
-        padding-bottom: 90px;
-    }
-
+    .block-container { padding-bottom: 80px; }
     .footer {
         position: fixed;
-        left: 0;
         bottom: 0;
         width: 100%;
-        background-color: rgba(0,0,0,0);
-        color: #B3B3B3;
         text-align: center;
-        font-size: 16px;
-        padding: 10px;
-        z-index: 100;
+        font-size: 14px;
+        color: #B3B3B3;
     }
-
     .footer a {
         color: #1DA1F2;
-        text-decoration: none;
         margin: 0 8px;
-        font-weight: 500;
-    }
-
-    .footer a:hover {
-        color: #0A66C2;
-        text-decoration: underline;
+        text-decoration: none;
     }
     </style>
 
     <div class="footer">
-        © 2026 <b>Developed by Shreeyansh Asati</b> |
-        <a href="https://www.linkedin.com/in/shreeyansh-asati-18shreey/" target="_blank">
-            🔗 LinkedIn
-        </a> |
-        <a href="https://github.com/SHREEYANSHGIT" target="_blank">
-            💻 GitHub
-        </a>
+        © 2026 <b>Shreeyansh Asati</b> |
+        <a href="https://www.linkedin.com/in/shreeyansh-asati-18shreey/" target="_blank">LinkedIn</a> |
+        <a href="https://github.com/SHREEYANSHGIT" target="_blank">GitHub</a>
     </div>
     """,
     unsafe_allow_html=True
