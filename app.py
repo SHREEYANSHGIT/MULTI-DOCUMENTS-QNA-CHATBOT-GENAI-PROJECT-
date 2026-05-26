@@ -1,368 +1,617 @@
 import streamlit as st
 import os
 import shutil
+
 from ingest import load_files, create_vector_db
 from llm_router import get_llm
+
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
-# ---------- PAGE CONFIG (must be first) ----------
+
+# =========================================================
+# PAGE CONFIG
+# =========================================================
 st.set_page_config(
-    page_title="RAG Chatbot · Shreeyansh",
+    page_title="RAG AI · Shreeyansh",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ---------- GLOBAL STYLES ----------
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
-
-/* ── Root variables ── */
-:root {
-    --bg:        #0b0f1a;
-    --surface:   #111827;
-    --surface2:  #1a2235;
-    --border:    #1f2d42;
-    --gold:      #f5a623;
-    --gold-soft: #f5a62322;
-    --teal:      #4ecdc4;
-    --teal-soft: #4ecdc415;
-    --text:      #e2e8f0;
-    --muted:     #64748b;
-    --danger:    #ff6b6b;
-    --success:   #6bcb77;
-    --radius:    12px;
-    --radius-lg: 20px;
-}
-
-/* ── Base reset ── */
-html, body, .stApp {
-    background-color: var(--bg) !important;
-    font-family: 'DM Sans', sans-serif !important;
-    color: var(--text) !important;
-}
-
-/* ── Hide Streamlit chrome ── */
-#MainMenu, footer, header { visibility: hidden; }
-
-/* ── Sidebar ── */
-[data-testid="stSidebar"] {
-    background: var(--surface) !important;
-    border-right: 1px solid var(--border) !important;
-}
-[data-testid="stSidebar"] .block-container {
-    padding: 2rem 1.2rem !important;
-}
-
-/* ── Sidebar header ── */
-.sidebar-brand {
-    font-family: 'Space Mono', monospace;
-    font-size: 0.72rem;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--gold);
-    margin-bottom: 0.3rem;
-}
-.sidebar-title {
-    font-family: 'Space Mono', monospace;
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--text);
-    line-height: 1.35;
-    margin-bottom: 1.8rem;
-}
-
-/* ── Section labels ── */
-.section-label {
-    font-size: 0.68rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin: 1.4rem 0 0.5rem;
-    font-family: 'Space Mono', monospace;
-}
-
-/* ── Upload area ── */
-[data-testid="stFileUploader"] {
-    background: var(--surface2) !important;
-    border: 1.5px dashed var(--border) !important;
-    border-radius: var(--radius) !important;
-    transition: border-color 0.2s;
-}
-[data-testid="stFileUploader"]:hover {
-    border-color: var(--gold) !important;
-}
-[data-testid="stFileUploader"] label {
-    color: var(--muted) !important;
-    font-size: 0.85rem !important;
-}
-
-/* ── Text area ── */
-textarea {
-    background: var(--surface2) !important;
-    border: 1.5px solid var(--border) !important;
-    border-radius: var(--radius) !important;
-    color: var(--text) !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-size: 0.88rem !important;
-    transition: border-color 0.2s !important;
-}
-textarea:focus {
-    border-color: var(--gold) !important;
-    box-shadow: 0 0 0 3px var(--gold-soft) !important;
-}
-
-/* ── Selectbox ── */
-[data-testid="stSelectbox"] > div > div {
-    background: var(--surface2) !important;
-    border: 1.5px solid var(--border) !important;
-    border-radius: var(--radius) !important;
-    color: var(--text) !important;
-}
-[data-testid="stSelectbox"] > div > div:hover {
-    border-color: var(--gold) !important;
-}
-
-/* ── Process button ── */
-[data-testid="stButton"] > button {
-    background: linear-gradient(135deg, var(--gold) 0%, #e8941a 100%) !important;
-    color: #0b0f1a !important;
-    font-family: 'Space Mono', monospace !important;
-    font-size: 0.78rem !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.08em !important;
-    text-transform: uppercase !important;
-    border: none !important;
-    border-radius: var(--radius) !important;
-    padding: 0.65rem 1.2rem !important;
-    width: 100% !important;
-    cursor: pointer !important;
-    transition: opacity 0.2s, transform 0.15s !important;
-    box-shadow: 0 4px 18px #f5a62340 !important;
-}
-[data-testid="stButton"] > button:hover {
-    opacity: 0.9 !important;
-    transform: translateY(-1px) !important;
-}
-[data-testid="stButton"] > button:active {
-    transform: translateY(0) !important;
-}
-
-/* ── Main area ── */
-.main .block-container {
-    padding: 2.5rem 3rem 100px !important;
-    max-width: 900px !important;
-}
-
-/* ── Page header ── */
-.page-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    margin-bottom: 2.5rem;
-    padding-bottom: 1.8rem;
-    border-bottom: 1px solid var(--border);
-}
-.page-header-icon {
-    font-size: 2.4rem;
-    line-height: 1;
-    filter: drop-shadow(0 0 10px #f5a62360);
-}
-.page-header-text {}
-.page-header-eyebrow {
-    font-family: 'Space Mono', monospace;
-    font-size: 0.65rem;
-    letter-spacing: 0.25em;
-    text-transform: uppercase;
-    color: var(--gold);
-    margin-bottom: 0.25rem;
-}
-.page-header-title {
-    font-family: 'Space Mono', monospace;
-    font-size: 1.65rem;
-    font-weight: 700;
-    color: var(--text);
-    line-height: 1.2;
-}
-.page-header-sub {
-    font-size: 0.88rem;
-    color: var(--muted);
-    margin-top: 0.3rem;
-}
-
-/* ── Status badge ── */
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.35rem 0.85rem;
-    border-radius: 99px;
-    font-size: 0.75rem;
-    font-family: 'Space Mono', monospace;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    margin-bottom: 1.5rem;
-}
-.status-badge.ready {
-    background: #6bcb7722;
-    color: var(--success);
-    border: 1px solid #6bcb7744;
-}
-.status-badge.idle {
-    background: #f5a62318;
-    color: var(--gold);
-    border: 1px solid #f5a62340;
-}
-
-/* ── Chat messages ── */
-[data-testid="stChatMessage"] {
-    background: var(--surface) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius-lg) !important;
-    padding: 1rem 1.3rem !important;
-    margin-bottom: 0.9rem !important;
-}
-[data-testid="stChatMessage"][data-testid*="user"] {
-    background: var(--gold-soft) !important;
-    border-color: #f5a62335 !important;
-}
-
-/* ── Chat input ── */
-[data-testid="stChatInput"] {
-    background: var(--surface) !important;
-    border: 1.5px solid var(--border) !important;
-    border-radius: var(--radius-lg) !important;
-}
-[data-testid="stChatInput"]:focus-within {
-    border-color: var(--gold) !important;
-    box-shadow: 0 0 0 3px var(--gold-soft) !important;
-}
-[data-testid="stChatInput"] textarea {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-}
-
-/* ── Info / warning / success boxes ── */
-[data-testid="stAlert"] {
-    border-radius: var(--radius) !important;
-    border-left-width: 3px !important;
-    font-size: 0.88rem !important;
-}
-
-/* ── Spinner ── */
-[data-testid="stSpinner"] {
-    color: var(--gold) !important;
-}
-
-/* ── Model tag pill ── */
-.model-pill {
-    display: inline-block;
-    background: var(--teal-soft);
-    color: var(--teal);
-    border: 1px solid #4ecdc430;
-    border-radius: 99px;
-    font-family: 'Space Mono', monospace;
-    font-size: 0.68rem;
-    padding: 0.2rem 0.7rem;
-    letter-spacing: 0.06em;
-    margin-bottom: 1rem;
-}
-
-/* ── Divider ── */
-hr {
-    border: none !important;
-    border-top: 1px solid var(--border) !important;
-    margin: 1.5rem 0 !important;
-}
-
-/* ── Footer ── */
-.footer {
-    position: fixed;
-    left: 0;
-    bottom: 0;
-    width: 100%;
-    background: linear-gradient(to top, var(--bg) 70%, transparent);
-    color: var(--muted);
-    text-align: center;
-    font-size: 0.78rem;
-    padding: 14px 0 10px;
-    z-index: 100;
-    font-family: 'Space Mono', monospace;
-    letter-spacing: 0.04em;
-}
-.footer a {
-    color: var(--gold);
-    text-decoration: none;
-    margin: 0 10px;
-    transition: color 0.2s;
-}
-.footer a:hover { color: var(--teal); }
-
-/* ── Empty state ── */
-.empty-state {
-    text-align: center;
-    padding: 4rem 2rem;
-    color: var(--muted);
-}
-.empty-state-icon {
-    font-size: 3.5rem;
-    margin-bottom: 1rem;
-    filter: grayscale(0.3);
-}
-.empty-state-title {
-    font-family: 'Space Mono', monospace;
-    font-size: 1rem;
-    color: var(--text);
-    margin-bottom: 0.5rem;
-}
-.empty-state-sub {
-    font-size: 0.85rem;
-    line-height: 1.6;
-}
-
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: var(--muted); }
-</style>
-""", unsafe_allow_html=True)
-
-# ---------- SESSION STATE ----------
+# =========================================================
+# SESSION STATE
+# =========================================================
 if "vectordb_ready" not in st.session_state:
     st.session_state.vectordb_ready = False
+
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
+
 if "active_model" not in st.session_state:
     st.session_state.active_model = ""
 
-# ---------- SIDEBAR ----------
+if "doc_count" not in st.session_state:
+    st.session_state.doc_count = 0
+
+
+# =========================================================
+# GLOBAL CSS
+# =========================================================
+st.markdown("""
+<style>
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* =========================================================
+ROOT
+========================================================= */
+:root{
+    --bg:#050816;
+    --surface:#0f172a;
+    --surface-light:#111827;
+
+    --border:rgba(255,255,255,0.08);
+
+    --gold:#f5a623;
+    --gold-soft:rgba(245,166,35,0.12);
+
+    --cyan:#4ecdc4;
+    --cyan-soft:rgba(78,205,196,0.12);
+
+    --text:#f8fafc;
+    --muted:#94a3b8;
+
+    --radius:18px;
+    --radius-lg:28px;
+}
+
+/* =========================================================
+APP BACKGROUND
+========================================================= */
+html, body, .stApp{
+    background:
+        radial-gradient(circle at top left,#172554 0%,transparent 25%),
+        radial-gradient(circle at bottom right,#581c87 0%,transparent 25%),
+        linear-gradient(135deg,#050816 0%,#0b1120 100%) !important;
+
+    background-attachment: fixed;
+
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+}
+
+/* =========================================================
+HIDE STREAMLIT DEFAULT
+========================================================= */
+#MainMenu,
+header,
+footer{
+    visibility:hidden;
+}
+
+/* =========================================================
+SCROLLBAR
+========================================================= */
+::-webkit-scrollbar{
+    width:6px;
+}
+
+::-webkit-scrollbar-thumb{
+    background:#1e293b;
+    border-radius:999px;
+}
+
+/* =========================================================
+SIDEBAR
+========================================================= */
+[data-testid="stSidebar"]{
+    background:rgba(15,23,42,0.78) !important;
+
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+
+    border-right:1px solid rgba(255,255,255,0.06);
+}
+
+[data-testid="stSidebar"] .block-container{
+    padding:2rem 1.2rem;
+}
+
+/* =========================================================
+GLASS CARD
+========================================================= */
+.glass-card{
+    background:rgba(17,24,39,0.55);
+
+    border:1px solid rgba(255,255,255,0.08);
+
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+
+    border-radius:24px;
+
+    padding:1.4rem;
+
+    box-shadow:
+        0 8px 32px rgba(0,0,0,0.35),
+        inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+/* =========================================================
+TOPBAR
+========================================================= */
+.topbar{
+    position:sticky;
+    top:0;
+    z-index:999;
+
+    background:rgba(5,8,22,0.55);
+
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+
+    border:1px solid rgba(255,255,255,0.06);
+
+    border-radius:20px;
+
+    padding:14px 22px;
+
+    margin-bottom:2rem;
+
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.logo{
+    font-family:'Space Mono',monospace;
+    color:var(--gold);
+    font-size:1rem;
+    letter-spacing:0.18em;
+    font-weight:700;
+}
+
+.top-sub{
+    color:var(--muted);
+    font-size:0.9rem;
+}
+
+/* =========================================================
+MAIN CONTAINER
+========================================================= */
+.main .block-container{
+    padding:2rem 3rem 120px;
+    max-width:1100px;
+}
+
+/* =========================================================
+HERO SECTION
+========================================================= */
+.hero{
+    padding:1rem 0 2rem;
+}
+
+.hero-badge{
+    display:inline-block;
+
+    padding:8px 14px;
+
+    background:rgba(245,166,35,0.10);
+
+    border:1px solid rgba(245,166,35,0.25);
+
+    border-radius:999px;
+
+    color:var(--gold);
+
+    font-size:0.72rem;
+    letter-spacing:0.14em;
+
+    font-family:'Space Mono',monospace;
+
+    margin-bottom:1.2rem;
+}
+
+.hero h1{
+    font-size:3.4rem;
+    font-weight:800;
+    line-height:1.05;
+
+    margin-bottom:1rem;
+
+    background:linear-gradient(
+        90deg,
+        #ffffff,
+        #f5a623
+    );
+
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+}
+
+.hero p{
+    max-width:720px;
+
+    color:var(--muted);
+
+    line-height:1.8;
+
+    font-size:1rem;
+}
+
+/* =========================================================
+METRIC CARDS
+========================================================= */
+.metric-card{
+    background:rgba(17,24,39,0.52);
+
+    border:1px solid rgba(255,255,255,0.06);
+
+    border-radius:22px;
+
+    padding:1.2rem;
+
+    backdrop-filter: blur(14px);
+}
+
+.metric-title{
+    color:var(--muted);
+
+    font-size:0.78rem;
+
+    margin-bottom:0.4rem;
+
+    text-transform:uppercase;
+
+    letter-spacing:0.08em;
+}
+
+.metric-value{
+    font-size:1.5rem;
+    font-weight:700;
+}
+
+/* =========================================================
+FILE UPLOADER
+========================================================= */
+[data-testid="stFileUploader"]{
+    background:rgba(255,255,255,0.03);
+
+    border:1.5px dashed rgba(255,255,255,0.10);
+
+    border-radius:18px;
+
+    padding:0.4rem;
+}
+
+[data-testid="stFileUploader"]:hover{
+    border-color:var(--gold);
+}
+
+/* =========================================================
+TEXT AREA
+========================================================= */
+textarea{
+    background:rgba(255,255,255,0.03) !important;
+
+    border:1px solid rgba(255,255,255,0.08) !important;
+
+    border-radius:18px !important;
+
+    color:white !important;
+
+    font-size:0.92rem !important;
+}
+
+textarea:focus{
+    border-color:var(--gold) !important;
+
+    box-shadow:0 0 0 3px rgba(245,166,35,0.15) !important;
+}
+
+/* =========================================================
+SELECTBOX
+========================================================= */
+[data-testid="stSelectbox"] > div > div{
+    background:rgba(255,255,255,0.03) !important;
+
+    border:1px solid rgba(255,255,255,0.08) !important;
+
+    border-radius:16px !important;
+}
+
+/* =========================================================
+BUTTON
+========================================================= */
+[data-testid="stButton"] > button{
+
+    width:100%;
+
+    border:none !important;
+
+    border-radius:18px !important;
+
+    padding:0.85rem 1rem !important;
+
+    font-size:0.85rem !important;
+
+    font-weight:700 !important;
+
+    letter-spacing:0.08em;
+
+    text-transform:uppercase;
+
+    font-family:'Space Mono',monospace !important;
+
+    color:#050816 !important;
+
+    background:linear-gradient(
+        135deg,
+        #f5a623,
+        #ffb703
+    ) !important;
+
+    box-shadow:
+        0 0 15px rgba(245,166,35,0.35),
+        0 0 40px rgba(245,166,35,0.12);
+
+    transition:all 0.25s ease !important;
+}
+
+[data-testid="stButton"] > button:hover{
+    transform:translateY(-2px);
+
+    box-shadow:
+        0 0 25px rgba(245,166,35,0.55),
+        0 0 55px rgba(245,166,35,0.18);
+}
+
+/* =========================================================
+CHAT MESSAGES
+========================================================= */
+[data-testid="stChatMessage"]{
+
+    border-radius:24px !important;
+
+    padding:1.2rem 1.3rem !important;
+
+    border:1px solid rgba(255,255,255,0.06) !important;
+
+    backdrop-filter: blur(16px);
+
+    margin-bottom:1rem !important;
+
+    transition:all 0.2s ease;
+}
+
+[data-testid="stChatMessage"]:hover{
+    transform:translateY(-2px);
+}
+
+[data-testid="stChatMessage"][data-testid*="user"]{
+    background:linear-gradient(
+        135deg,
+        rgba(245,166,35,0.14),
+        rgba(245,166,35,0.04)
+    ) !important;
+}
+
+[data-testid="stChatMessage"][data-testid*="assistant"]{
+    background:rgba(255,255,255,0.03) !important;
+}
+
+/* =========================================================
+CHAT INPUT
+========================================================= */
+[data-testid="stChatInput"]{
+    background:rgba(17,24,39,0.65) !important;
+
+    border:1px solid rgba(255,255,255,0.08) !important;
+
+    border-radius:22px !important;
+
+    backdrop-filter: blur(14px);
+}
+
+[data-testid="stChatInput"]:focus-within{
+    border-color:var(--gold) !important;
+
+    box-shadow:0 0 0 3px rgba(245,166,35,0.12);
+}
+
+/* =========================================================
+STATUS BADGE
+========================================================= */
+.status-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+
+    padding:10px 18px;
+
+    border-radius:999px;
+
+    background:rgba(107,203,119,0.12);
+
+    border:1px solid rgba(107,203,119,0.22);
+
+    color:#6bcb77;
+
+    font-size:0.82rem;
+
+    font-weight:700;
+
+    margin-bottom:1.5rem;
+}
+
+.status-dot{
+    width:10px;
+    height:10px;
+
+    border-radius:50%;
+
+    background:#6bcb77;
+
+    box-shadow:0 0 12px #6bcb77;
+
+    animation:pulse 1.8s infinite;
+}
+
+@keyframes pulse{
+    0%{
+        transform:scale(1);
+        opacity:1;
+    }
+
+    50%{
+        transform:scale(1.3);
+        opacity:0.6;
+    }
+
+    100%{
+        transform:scale(1);
+        opacity:1;
+    }
+}
+
+/* =========================================================
+EMPTY STATE
+========================================================= */
+.empty-state{
+    text-align:center;
+
+    padding:5rem 2rem;
+}
+
+.empty-icon{
+    font-size:5rem;
+
+    margin-bottom:1rem;
+
+    animation:floaty 4s ease-in-out infinite;
+}
+
+@keyframes floaty{
+    0%{
+        transform:translateY(0px);
+    }
+
+    50%{
+        transform:translateY(-12px);
+    }
+
+    100%{
+        transform:translateY(0px);
+    }
+}
+
+.empty-title{
+    font-size:1.2rem;
+    font-weight:700;
+
+    margin-bottom:0.6rem;
+}
+
+.empty-sub{
+    color:var(--muted);
+
+    line-height:1.8;
+}
+
+/* =========================================================
+FOOTER
+========================================================= */
+.footer{
+    position:fixed;
+
+    bottom:0;
+    left:0;
+
+    width:100%;
+
+    text-align:center;
+
+    padding:14px;
+
+    color:#64748b;
+
+    font-size:0.82rem;
+
+    background:linear-gradient(
+        to top,
+        rgba(5,8,22,1),
+        rgba(5,8,22,0)
+    );
+
+    backdrop-filter: blur(8px);
+}
+
+.footer a{
+    color:var(--gold);
+
+    text-decoration:none;
+
+    margin:0 8px;
+}
+
+.footer a:hover{
+    color:var(--cyan);
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
+# =========================================================
+TOPBAR
+# =========================================================
+st.markdown("""
+<div class="topbar">
+    <div class="logo">
+        🧠 RAG AI
+    </div>
+
+    <div class="top-sub">
+        Multi-File Document Intelligence
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+
+# =========================================================
+SIDEBAR
+# =========================================================
 with st.sidebar:
+
     st.markdown("""
-        <div class="sidebar-brand">RAG · Document Intelligence</div>
-        <div class="sidebar-title">Knowledge<br>Ingestion</div>
+    <div class="glass-card">
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="section-label">📎 Documents</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <h2 style="
+        margin-top:0;
+        font-size:1.2rem;
+        margin-bottom:1.2rem;
+    ">
+    📂 Knowledge Upload
+    </h2>
+    """, unsafe_allow_html=True)
+
     files = st.file_uploader(
-        "Upload TXT / PDF",
-        type=["txt", "pdf"],
+        "Upload files",
+        type=["pdf", "txt"],
         accept_multiple_files=True,
-        label_visibility="collapsed",
+        label_visibility="collapsed"
     )
 
-    st.markdown('<div class="section-label">✍️ Paste Text</div>', unsafe_allow_html=True)
     manual_text = st.text_area(
         "Paste text",
-        placeholder="Or paste raw text here...",
-        height=120,
-        label_visibility="collapsed",
+        placeholder="Paste raw text here...",
+        height=140,
+        label_visibility="collapsed"
     )
 
-    st.markdown('<div class="section-label">🤖 Model</div>', unsafe_allow_html=True)
     llm_choice = st.selectbox(
         "Choose LLM",
         [
@@ -370,108 +619,235 @@ with st.sidebar:
             "qwen3-32b",
             "gpt-oss-120b",
             "gemini-2.5-flash-lite",
-            "gemini-2.5-flash",
+            "gemini-2.5-flash"
         ],
-        label_visibility="collapsed",
+        label_visibility="collapsed"
     )
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     if st.button("⚡ Process & Embed"):
+
         if not files and not manual_text.strip():
             st.warning("Upload files or paste text first.")
+
         else:
-            with st.spinner("Building vector index..."):
+            with st.spinner("Building vector database..."):
+
                 if os.path.exists("chroma_db"):
                     shutil.rmtree("chroma_db", ignore_errors=True)
+
                 docs = load_files(files, manual_text)
+
                 create_vector_db(docs)
-                st.session_state.chat_history = []
+
                 st.session_state.vectordb_ready = True
+                st.session_state.chat_history = []
                 st.session_state.active_model = llm_choice
-                st.success("✅ Index ready — ask away!")
+                st.session_state.doc_count = len(docs)
 
-    # Sidebar footer
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown(
-        '<div style="font-size:0.68rem;color:#2d3f55;font-family:Space Mono,monospace;text-align:center;letter-spacing:0.05em;">'
-        'POWERED BY LANGCHAIN + CHROMA'
-        '</div>',
-        unsafe_allow_html=True,
-    )
+                st.success("✅ Vector database ready!")
 
-# ---------- MAIN ----------
-st.markdown("""
-<div class="page-header">
-    <div class="page-header-icon">🧠</div>
-    <div class="page-header-text">
-        <div class="page-header-eyebrow">Retrieval-Augmented Generation</div>
-        <div class="page-header-title">Multi-File RAG Chatbot</div>
-        <div class="page-header-sub">Upload documents · Ask anything · Get grounded answers</div>
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="
+        text-align:center;
+        color:#475569;
+        font-size:0.72rem;
+        font-family:'Space Mono',monospace;
+        letter-spacing:0.08em;
+    ">
+        POWERED BY LANGCHAIN · CHROMA · STREAMLIT
     </div>
+    """, unsafe_allow_html=True)
+
+
+# =========================================================
+HERO SECTION
+# =========================================================
+st.markdown("""
+<div class="hero">
+
+    <div class="hero-badge">
+        AI DOCUMENT INTELLIGENCE
+    </div>
+
+    <h1>
+        Multi-File RAG Chatbot
+    </h1>
+
+    <p>
+        Upload PDFs, TXT files, or raw text and chat with your documents
+        using semantic search and powerful LLMs.
+    </p>
+
 </div>
 """, unsafe_allow_html=True)
 
+
+# =========================================================
+METRICS
+# =========================================================
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.markdown(f"""
+    <div class="metric-card">
+        <div class="metric-title">Documents</div>
+        <div class="metric-value">
+            {len(files) if files else 0}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    st.markdown(f"""
+    <div class="metric-card">
+        <div class="metric-title">Chunks</div>
+        <div class="metric-value">
+            {st.session_state.doc_count}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col3:
+    st.markdown(f"""
+    <div class="metric-card">
+        <div class="metric-title">Model</div>
+        <div class="metric-value" style="font-size:1rem">
+            {llm_choice}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+
+# =========================================================
+CHAT SECTION
+# =========================================================
 if st.session_state.vectordb_ready:
-    model_label = st.session_state.active_model or llm_choice
-    st.markdown(
-        f'<div class="status-badge ready">● Index Ready</div>'
-        f'&nbsp;&nbsp;<span class="model-pill">{model_label}</span>',
-        unsafe_allow_html=True,
+
+    st.markdown("""
+    <div class="status-badge">
+        <div class="status-dot"></div>
+        INDEX READY
+    </div>
+    """, unsafe_allow_html=True)
+
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vectordb = Chroma(persist_directory="chroma_db", embedding_function=embeddings)
+    vectordb = Chroma(
+        persist_directory="chroma_db",
+        embedding_function=embeddings
+    )
+
     retriever = vectordb.as_retriever(search_kwargs={"k": 4})
+
     llm = get_llm(llm_choice)
 
-    # Replay history
+    # ============================================
+    # REPLAY CHAT
+    # ============================================
     for user_msg, bot_msg in st.session_state.chat_history:
+
         st.chat_message("user", avatar="👤").write(user_msg)
+
         st.chat_message("assistant", avatar="🧠").write(bot_msg)
 
-    query = st.chat_input("Ask a question about your documents...")
+    # ============================================
+    # INPUT
+    # ============================================
+    query = st.chat_input(
+        "Ask a question about your documents..."
+    )
+
     if query:
-        docs_retrieved = retriever.invoke(query)
-        context = "\n\n".join(doc.page_content for doc in docs_retrieved)
-        prompt = f"""You are a helpful assistant.
-Answer ONLY from the context below. If the answer is not in the context, say so clearly.
+
+        st.chat_message("user", avatar="👤").write(query)
+
+        docs = retriever.invoke(query)
+
+        context = "\n\n".join(
+            doc.page_content for doc in docs
+        )
+
+        prompt = f"""
+You are a helpful AI assistant.
+
+Answer ONLY from the provided context.
+If the answer is not present in the context,
+say clearly that the information is unavailable.
 
 Context:
 {context}
 
 Question:
-{query}"""
+{query}
+"""
 
         with st.spinner("Thinking..."):
+
             response = llm.invoke(prompt)
+
             answer = response.content
 
-        st.session_state.chat_history.append((query, answer))
-        st.chat_message("user", avatar="👤").write(query)
-        st.chat_message("assistant", avatar="🧠").write(answer)
+        st.chat_message(
+            "assistant",
+            avatar="🧠"
+        ).write(answer)
+
+        st.session_state.chat_history.append(
+            (query, answer)
+        )
 
 else:
-    st.markdown(
-        '<div class="status-badge idle">○ Awaiting Documents</div>',
-        unsafe_allow_html=True,
-    )
+
     st.markdown("""
     <div class="empty-state">
-        <div class="empty-state-icon">📂</div>
-        <div class="empty-state-title">No documents indexed yet</div>
-        <div class="empty-state-sub">
-            Upload PDF or TXT files (or paste text) in the sidebar,<br>
-            choose a model, then click <strong>⚡ Process &amp; Embed</strong>.
+
+        <div class="empty-icon">
+            📂
         </div>
+
+        <div class="empty-title">
+            No Documents Indexed
+        </div>
+
+        <div class="empty-sub">
+            Upload PDF/TXT files or paste raw text in the sidebar.<br>
+            Then click <strong>⚡ Process & Embed</strong>
+            to start chatting with your data.
+        </div>
+
     </div>
     """, unsafe_allow_html=True)
 
-# ---------- FOOTER ----------
+
+# =========================================================
+FOOTER
+# =========================================================
 st.markdown("""
 <div class="footer">
-    © 2026 &nbsp;<strong>Shreeyansh Asati</strong>&nbsp; · &nbsp;
-    <a href="https://www.linkedin.com/in/shreeyansh-asati-18shreey/" target="_blank">LinkedIn</a>
-    <a href="https://github.com/SHREEYANSHGIT" target="_blank">GitHub</a>
+
+    © 2026 <strong>Shreeyansh Asati</strong>
+
+    ·
+
+    <a href="https://www.linkedin.com/in/shreeyansh-asati-18shreey/" target="_blank">
+        LinkedIn
+    </a>
+
+    ·
+
+    <a href="https://github.com/SHREEYANSHGIT" target="_blank">
+        GitHub
+    </a>
+
 </div>
 """, unsafe_allow_html=True)
