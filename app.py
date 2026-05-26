@@ -9,7 +9,7 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 # ---------- PAGE CONFIGURATION ----------
 st.set_page_config(
     page_title="RAG Chatbot · Shreeyansh",
-    page_icon="✦",
+    page_icon="🎉",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -458,7 +458,7 @@ with st.sidebar:
                 st.session_state.chat_history = []
                 st.session_state.vectordb_ready = True
                 status.update(label="✅ Database Ready!", state="complete", expanded=False)
-            st.toast("Knowledge base ready — start asking questions!", icon="✦")
+            st.toast("Knowledge base ready — start asking questions!", icon="🎉")
 
 # ---------- CHAT INTERFACE ----------
 if st.session_state.vectordb_ready:
