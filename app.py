@@ -73,47 +73,119 @@ html, body, .stApp {
 ::-webkit-scrollbar-thumb:hover { background: #334155; }
 
 /* ══════════════════════════════════════════
-   SIDEBAR TOGGLE BUTTON — always visible
+   SIDEBAR TOGGLE BUTTON — FIXED
 ══════════════════════════════════════════ */
+
+/* Toggle button when sidebar is COLLAPSED */
+section[data-testid="stSidebar"][aria-expanded="false"] + div button[kind="header"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: fixed !important;
+    top: 18px !important;
+    left: 14px !important;
+    z-index: 9999 !important;
+    background: rgba(5,8,22,0.95) !important;
+    border: 1.5px solid rgba(245,166,35,0.45) !important;
+    border-radius: 12px !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    box-shadow: 
+        0 0 20px rgba(245,166,35,0.25),
+        0 4px 12px rgba(0,0,0,0.4) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+section[data-testid="stSidebar"][aria-expanded="false"] + div button[kind="header"]:hover {
+    background: rgba(245,166,35,0.20) !important;
+    border-color: var(--gold) !important;
+    box-shadow: 
+        0 0 30px rgba(245,166,35,0.45),
+        0 6px 16px rgba(0,0,0,0.5) !important;
+    transform: scale(1.08) !important;
+}
+
+section[data-testid="stSidebar"][aria-expanded="false"] + div button[kind="header"] svg {
+    fill: var(--gold) !important;
+    stroke: var(--gold) !important;
+    width: 22px !important;
+    height: 22px !important;
+}
+
+/* Alternative targeting for the collapsed control */
 [data-testid="collapsedControl"] {
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
+    position: fixed !important;
     top: 18px !important;
     left: 14px !important;
-    position: fixed !important;
     z-index: 9999 !important;
-    background: rgba(5,8,22,0.82) !important;
-    border: 1px solid rgba(245,166,35,0.35) !important;
+    background: rgba(5,8,22,0.95) !important;
+    border: 1.5px solid rgba(245,166,35,0.45) !important;
     border-radius: 12px !important;
-    width: 42px !important;
-    height: 42px !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
     align-items: center !important;
     justify-content: center !important;
     cursor: pointer !important;
-    backdrop-filter: blur(10px) !important;
-    box-shadow: 0 0 16px rgba(245,166,35,0.20) !important;
-    transition: all 0.2s ease !important;
-}
-[data-testid="collapsedControl"]:hover {
-    background: rgba(245,166,35,0.15) !important;
-    border-color: var(--gold) !important;
-    box-shadow: 0 0 24px rgba(245,166,35,0.40) !important;
-    transform: scale(1.05) !important;
-}
-[data-testid="collapsedControl"] svg {
-    fill: var(--gold) !important;
-    width: 20px !important;
-    height: 20px !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    box-shadow: 
+        0 0 20px rgba(245,166,35,0.25),
+        0 4px 12px rgba(0,0,0,0.4) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-/* Also style the open-state toggle inside the sidebar */
-[data-testid="stSidebarCollapsedControl"],
-button[kind="header"] {
-    background: rgba(5,8,22,0.82) !important;
-    border: 1px solid rgba(245,166,35,0.35) !important;
-    border-radius: 12px !important;
-    color: var(--gold) !important;
+[data-testid="collapsedControl"]:hover {
+    background: rgba(245,166,35,0.20) !important;
+    border-color: var(--gold) !important;
+    box-shadow: 
+        0 0 30px rgba(245,166,35,0.45),
+        0 6px 16px rgba(0,0,0,0.5) !important;
+    transform: scale(1.08) !important;
+}
+
+[data-testid="collapsedControl"] svg {
+    fill: var(--gold) !important;
+    stroke: var(--gold) !important;
+    width: 22px !important;
+    height: 22px !important;
+}
+
+/* Toggle button when sidebar is OPEN (inside sidebar) */
+[data-testid="stSidebarNav"] button[kind="header"],
+section[data-testid="stSidebar"] button[kind="header"] {
+    background: rgba(5,8,22,0.90) !important;
+    border: 1.5px solid rgba(245,166,35,0.35) !important;
+    border-radius: 10px !important;
+    padding: 8px !important;
+    margin: 8px !important;
+    transition: all 0.3s ease !important;
+}
+
+[data-testid="stSidebarNav"] button[kind="header"]:hover,
+section[data-testid="stSidebar"] button[kind="header"]:hover {
+    background: rgba(245,166,35,0.15) !important;
+    border-color: var(--gold) !important;
+    transform: scale(1.05) !important;
+}
+
+[data-testid="stSidebarNav"] button[kind="header"] svg,
+section[data-testid="stSidebar"] button[kind="header"] svg {
+    fill: var(--gold) !important;
+    stroke: var(--gold) !important;
 }
 
 /* ══════════════════════════════════════════
@@ -124,6 +196,12 @@ button[kind="header"] {
     border-right: 1px solid rgba(245,166,35,0.12) !important;
     backdrop-filter: blur(20px) !important;
 }
+
+[data-testid="stSidebar"] > div:first-child {
+    background: rgba(8,12,28,0.95) !important;
+    backdrop-filter: blur(20px) !important;
+}
+
 [data-testid="stSidebar"] .block-container {
     padding: 1.8rem 1.1rem 2rem !important;
 }
