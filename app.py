@@ -75,13 +75,10 @@ header .stAppDeployButton, header [data-testid="stToolbar"] { display: none !imp
 ::-webkit-scrollbar-thumb:hover { background: #334155; }
 
 /* ══════════════════════════════════════════
-   SIDEBAR TOGGLE BUTTON — always visible
+   SIDEBAR TOGGLE BUTTON
 ══════════════════════════════════════════ */
 [data-testid="collapsedControl"],
 [data-testid="stSidebarCollapsedControl"] {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
     top: 18px !important;
     left: 14px !important;
     position: fixed !important;
