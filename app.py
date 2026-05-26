@@ -35,6 +35,9 @@ if "active_model" not in st.session_state:
 if "doc_count" not in st.session_state:
     st.session_state.doc_count = 0
 
+if "sidebar_visible" not in st.session_state:
+    st.session_state.sidebar_visible = True
+
 
 # =========================================================
 # GLOBAL CSS
@@ -78,11 +81,39 @@ html, body, .stApp {
 ::-webkit-scrollbar-thumb:hover  { background: #334155; }
 
 /* ══════════════════════════════════════════
+   SIDEBAR TOGGLE BUTTON
+══════════════════════════════════════════ */
+.sidebar-toggle {
+    position: fixed;
+    left: 20px;
+    top: 20px;
+    z-index: 999;
+    background: linear-gradient(135deg, #f5a623 0%, #ffb703 100%);
+    border: none;
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: #050816;
+    cursor: pointer;
+    transition: all 0.22s ease;
+    box-shadow: 0 0 18px rgba(245,166,35,0.35);
+}
+.sidebar-toggle:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 28px rgba(245,166,35,0.55);
+}
+
+/* ══════════════════════════════════════════
    SIDEBAR
 ══════════════════════════════════════════ */
 [data-testid="stSidebar"] {
     background: rgba(10,15,30,0.92) !important;
     border-right: 1px solid rgba(245,166,35,0.12) !important;
+    transition: transform 0.3s ease !important;
 }
 
 [data-testid="stSidebar"] > div:first-child {
@@ -91,6 +122,11 @@ html, body, .stApp {
 
 [data-testid="stSidebar"] .block-container {
     padding: 1.8rem 1.1rem 2rem !important;
+}
+
+/* Hide sidebar */
+[data-testid="stSidebar"][aria-expanded="false"] {
+    transform: translateX(-100%) !important;
 }
 
 /* Sidebar brand */
@@ -456,83 +492,106 @@ hr {
 
 
 # =========================================================
+# SIDEBAR TOGGLE BUTTON
+# =========================================================
+def toggle_sidebar():
+    st.session_state.sidebar_visible = not st.session_state.sidebar_visible
+
+if st.button("📂 Show Upload Panel", key="toggle_sidebar", help="Show/hide file upload panel"):
+    toggle_sidebar()
+    st.rerun()
+
+# =========================================================
 # SIDEBAR
 # =========================================================
-with st.sidebar:
+if st.session_state.sidebar_visible:
+    with st.sidebar:
 
-    # Brand
-    st.markdown("""
-    <div class="sb-brand">Document Intelligence</div>
-    <div class="sb-title">Knowledge<br>Ingestion</div>
-    """, unsafe_allow_html=True)
+        # Brand
+        st.markdown("""
+        <div class="sb-brand">Document Intelligence</div>
+        <div class="sb-title">Knowledge<br>Ingestion</div>
+        """, unsafe_allow_html=True)
 
-    # ── File upload ──
-    st.markdown('<span class="sb-label">📎 Upload Files</span>', unsafe_allow_html=True)
-    files = st.file_uploader(
-        "Upload PDF or TXT",
-        type=["pdf", "txt"],
-        accept_multiple_files=True,
-        label_visibility="visible",
-    )
+        # ── File upload ──
+        st.markdown('<span class="sb-label">📎 Upload Files</span>', unsafe_allow_html=True)
+        files = st.file_uploader(
+            "Upload PDF or TXT",
+            type=["pdf", "txt"],
+            accept_multiple_files=True,
+            label_visibility="visible",
+            key="file_uploader"
+        )
 
-    # ── Paste text ──
-    st.markdown('<span class="sb-label">✍️ Paste Text</span>', unsafe_allow_html=True)
-    manual_text = st.text_area(
-        "Or paste raw text here",
-        placeholder="Paste any raw text content...",
-        height=130,
-        label_visibility="visible",
-    )
+        # ── Paste text ──
+        st.markdown('<span class="sb-label">✍️ Paste Text</span>', unsafe_allow_html=True)
+        manual_text = st.text_area(
+            "Or paste raw text here",
+            placeholder="Paste any raw text content...",
+            height=130,
+            label_visibility="visible",
+            key="manual_text"
+        )
 
-    # ── Model selector ──
-    st.markdown('<span class="sb-label">🤖 Select Model</span>', unsafe_allow_html=True)
-    llm_choice = st.selectbox(
-        "Choose your LLM",
-        options=[
-            "llama-3.1-8b-instant",
-            "qwen3-32b",
-            "gpt-oss-120b",
-            "gemini-2.5-flash-lite",
-            "gemini-2.5-flash",
-        ],
-        label_visibility="visible",
-    )
+        # ── Model selector ──
+        st.markdown('<span class="sb-label">🤖 Select Model</span>', unsafe_allow_html=True)
+        llm_choice = st.selectbox(
+            "Choose your LLM",
+            options=[
+                "llama-3.1-8b-instant",
+                "qwen3-32b",
+                "gpt-oss-120b",
+                "gemini-2.5-flash-lite",
+                "gemini-2.5-flash",
+            ],
+            label_visibility="visible",
+            key="model_selector"
+        )
 
-    st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Process button ──
-    if st.button("⚡ Process & Embed"):
-        if not files and not manual_text.strip():
-            st.warning("⚠️ Upload files or paste text first.")
-        else:
-            with st.spinner("Building vector database..."):
-                if os.path.exists("chroma_db"):
-                    shutil.rmtree("chroma_db", ignore_errors=True)
+        # ── Process button ──
+        if st.button("⚡ Process & Embed", key="process_button"):
+            if not files and not manual_text.strip():
+                st.warning("⚠️ Upload files or paste text first.")
+            else:
+                with st.spinner("Building vector database..."):
+                    if os.path.exists("chroma_db"):
+                        shutil.rmtree("chroma_db", ignore_errors=True)
 
-                docs = load_files(files, manual_text)
-                create_vector_db(docs)
+                    docs = load_files(files, manual_text)
+                    create_vector_db(docs)
 
-                st.session_state.vectordb_ready = True
-                st.session_state.chat_history   = []
-                st.session_state.active_model   = llm_choice
-                st.session_state.doc_count      = len(docs)
+                    st.session_state.vectordb_ready = True
+                    st.session_state.chat_history   = []
+                    st.session_state.active_model   = llm_choice
+                    st.session_state.doc_count      = len(docs)
+                    
+                    # Auto-hide sidebar after processing
+                    st.session_state.sidebar_visible = False
 
-            st.success("✅ Vector database ready!")
+                st.success("✅ Vector database ready!")
+                st.rerun()
 
-    # Sidebar footer
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown("""
-    <div style="
-        text-align:center;
-        color:#2d3f58;
-        font-size:0.65rem;
-        font-family:'Space Mono',monospace;
-        letter-spacing:0.10em;
-        line-height:1.8;
-    ">
-        LANGCHAIN · CHROMA<br>HUGGINGFACE · STREAMLIT
-    </div>
-    """, unsafe_allow_html=True)
+        # Sidebar footer
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("""
+        <div style="
+            text-align:center;
+            color:#2d3f58;
+            font-size:0.65rem;
+            font-family:'Space Mono',monospace;
+            letter-spacing:0.10em;
+            line-height:1.8;
+        ">
+            LANGCHAIN · CHROMA<br>HUGGINGFACE · STREAMLIT
+        </div>
+        """, unsafe_allow_html=True)
+else:
+    # Set default values when sidebar is hidden
+    files = []
+    manual_text = ""
+    llm_choice = st.session_state.get("active_model", "llama-3.1-8b-instant")
 
 
 # =========================================================
@@ -567,11 +626,15 @@ st.markdown("""
 c1, c2, c3 = st.columns(3)
 
 with c1:
-    count = len(files) if files else 0
+    # Get file count from session state or current files
+    if st.session_state.sidebar_visible and 'files' in locals():
+        file_count = len(files) if files else 0
+    else:
+        file_count = 0
     st.markdown(f"""
     <div class="metric-card">
         <div class="metric-label">📄 Documents</div>
-        <div class="metric-value">{count}</div>
+        <div class="metric-value">{file_count}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -584,7 +647,7 @@ with c2:
     """, unsafe_allow_html=True)
 
 with c3:
-    model_display = st.session_state.active_model if st.session_state.active_model else llm_choice
+    model_display = st.session_state.active_model if st.session_state.active_model else "llama-3.1-8b-instant"
     st.markdown(f"""
     <div class="metric-card">
         <div class="metric-label">🤖 Active Model</div>
@@ -652,7 +715,8 @@ else:
         <span class="empty-icon">📂</span>
         <div class="empty-title">No Documents Indexed Yet</div>
         <div class="empty-sub">
-            Upload PDF / TXT files or paste raw text in the sidebar,<br>
+            Click the <strong>📂 Show Upload Panel</strong> button above,<br>
+            upload PDF / TXT files or paste raw text,<br>
             then click <strong>⚡ Process &amp; Embed</strong> to begin.
         </div>
     </div>
