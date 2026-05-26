@@ -64,10 +64,19 @@ html, body, .stApp {
     font-family: 'Inter', sans-serif !important;
 }
 
-/* ── HIDE DEFAULT CHROME (FIXED) ── */
-#MainMenu, footer { visibility: hidden; }
-header { background: transparent !important; }
-header .stAppDeployButton, header [data-testid="stToolbar"] { display: none !important; }
+/* ── HEADER & CHROME ADJUSTMENTS (THE FIX) ── */
+/* Keep the header visible for the toggle button, but make it transparent */
+header { 
+    background: transparent !important; 
+    visibility: visible !important;
+}
+/* Hide only the unwanted toolbar items (Deploy, hamburger menu) */
+[data-testid="stToolbar"] {
+    visibility: hidden !important;
+}
+footer { 
+    visibility: hidden !important; 
+}
 
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar             { width: 5px; }
@@ -75,50 +84,7 @@ header .stAppDeployButton, header [data-testid="stToolbar"] { display: none !imp
 ::-webkit-scrollbar-thumb:hover { background: #334155; }
 
 /* ══════════════════════════════════════════
-   SIDEBAR TOGGLE BUTTON
-══════════════════════════════════════════ */
-[data-testid="collapsedControl"],
-[data-testid="stSidebarCollapsedControl"] {
-    top: 18px !important;
-    left: 14px !important;
-    position: fixed !important;
-    z-index: 9999 !important;
-    background: rgba(5,8,22,0.82) !important;
-    border: 1px solid rgba(245,166,35,0.35) !important;
-    border-radius: 12px !important;
-    width: 42px !important;
-    height: 42px !important;
-    align-items: center !important;
-    justify-content: center !important;
-    cursor: pointer !important;
-    backdrop-filter: blur(10px) !important;
-    box-shadow: 0 0 16px rgba(245,166,35,0.20) !important;
-    transition: all 0.2s ease !important;
-}
-[data-testid="collapsedControl"]:hover,
-[data-testid="stSidebarCollapsedControl"]:hover {
-    background: rgba(245,166,35,0.15) !important;
-    border-color: var(--gold) !important;
-    box-shadow: 0 0 24px rgba(245,166,35,0.40) !important;
-    transform: scale(1.05) !important;
-}
-[data-testid="collapsedControl"] svg,
-[data-testid="stSidebarCollapsedControl"] svg {
-    fill: var(--gold) !important;
-    width: 20px !important;
-    height: 20px !important;
-}
-
-/* Also style the open-state toggle inside the sidebar */
-button[kind="header"] {
-    background: rgba(5,8,22,0.82) !important;
-    border: 1px solid rgba(245,166,35,0.35) !important;
-    border-radius: 12px !important;
-    color: var(--gold) !important;
-}
-
-/* ══════════════════════════════════════════
-   SIDEBAR
+   SIDEBAR STYLING
 ══════════════════════════════════════════ */
 [data-testid="stSidebar"] {
     background: rgba(8,12,28,0.95) !important;
@@ -561,82 +527,4 @@ with c2:
 
 with c3:
     model_display = st.session_state.active_model if st.session_state.active_model else llm_choice
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">🤖 Active Model</div>
-        <div class="metric-value sm">{model_display}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-
-# =========================================================
-# CHAT SECTION
-# =========================================================
-if st.session_state.vectordb_ready:
-
-    st.markdown("""
-    <div class="status-ready">
-        <div class="pulse-dot"></div>
-        INDEX READY — ASK ANYTHING
-    </div>
-    """, unsafe_allow_html=True)
-
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vectordb   = Chroma(persist_directory="chroma_db", embedding_function=embeddings)
-    retriever  = vectordb.as_retriever(search_kwargs={"k": 4})
-    llm        = get_llm(llm_choice)
-
-    for user_msg, bot_msg in st.session_state.chat_history:
-        st.chat_message("user",      avatar="👤").write(user_msg)
-        st.chat_message("assistant", avatar="🧠").write(bot_msg)
-
-    query = st.chat_input("Ask a question about your documents...")
-
-    if query:
-        st.chat_message("user", avatar="👤").write(query)
-
-        docs_retrieved = retriever.invoke(query)
-        context = "\n\n".join(d.page_content for d in docs_retrieved)
-
-        prompt = f"""You are a helpful AI assistant.
-Answer ONLY from the provided context.
-If the answer is not in the context, clearly state that the information is unavailable.
-
-Context:
-{context}
-
-Question:
-{query}
-"""
-        with st.spinner("Thinking..."):
-            response = llm.invoke(prompt)
-            answer   = response.content
-
-        st.chat_message("assistant", avatar="🧠").write(answer)
-        st.session_state.chat_history.append((query, answer))
-
-else:
-    st.markdown("""
-    <div class="empty-state">
-        <span class="empty-icon">📂</span>
-        <div class="empty-title">No Documents Indexed Yet</div>
-        <div class="empty-sub">
-            Upload PDF / TXT files or paste raw text in the sidebar,<br>
-            then click <strong>⚡ Process &amp; Embed</strong> to begin.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-# =========================================================
-# FOOTER
-# =========================================================
-st.markdown("""
-<div class="footer">
-    © 2026 &nbsp;<strong>Shreeyansh Asati</strong>&nbsp;·
-    <a href="https://www.linkedin.com/in/shreeyansh-asati-18shreey/" target="_blank">LinkedIn</a>·
-    <a href="https://github.com/SHREEYANSHGIT" target="_blank">GitHub</a>
-</div>
-""", unsafe_allow_html=True)
+    st.markdown
