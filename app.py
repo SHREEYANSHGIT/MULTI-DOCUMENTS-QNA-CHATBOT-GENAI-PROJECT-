@@ -64,15 +64,10 @@ html, body, .stApp {
     font-family: 'Inter', sans-serif !important;
 }
 
-/* ── HIDE DEFAULT CHROME (but NOT the sidebar toggle) ── */
-#MainMenu { visibility: hidden; }
-footer { visibility: hidden; }
-/* NOTE: Removed `header` from hidden list because the sidebar
-   toggle button lives inside the header in newer Streamlit versions. */
-header[data-testid="stHeader"] {
-    background: transparent !important;
-    height: 0 !important;
-}
+/* ── HIDE DEFAULT CHROME (FIXED) ── */
+#MainMenu, footer { visibility: hidden; }
+header { background: transparent !important; }
+header .stAppDeployButton, header [data-testid="stToolbar"] { display: none !important; }
 
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar             { width: 5px; }
@@ -81,26 +76,18 @@ header[data-testid="stHeader"] {
 
 /* ══════════════════════════════════════════
    SIDEBAR TOGGLE BUTTON — always visible
-   (Covers ALL Streamlit versions: old + new)
 ══════════════════════════════════════════ */
-
-/* Old Streamlit: collapsed-state button */
 [data-testid="collapsedControl"],
-/* New Streamlit (>=1.36): toggle button inside header */
-[data-testid="stSidebarCollapseButton"],
-[data-testid="stSidebarCollapsedControl"],
-/* Generic header button */
-button[kind="header"],
-[data-testid="baseButton-header"] {
+[data-testid="stSidebarCollapsedControl"] {
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
-    top: 14px !important;
+    top: 18px !important;
     left: 14px !important;
     position: fixed !important;
-    z-index: 999999 !important;
-    background: rgba(5,8,22,0.85) !important;
-    border: 1px solid rgba(245,166,35,0.45) !important;
+    z-index: 9999 !important;
+    background: rgba(5,8,22,0.82) !important;
+    border: 1px solid rgba(245,166,35,0.35) !important;
     border-radius: 12px !important;
     width: 42px !important;
     height: 42px !important;
@@ -108,42 +95,29 @@ button[kind="header"],
     justify-content: center !important;
     cursor: pointer !important;
     backdrop-filter: blur(10px) !important;
-    box-shadow: 0 0 16px rgba(245,166,35,0.30) !important;
+    box-shadow: 0 0 16px rgba(245,166,35,0.20) !important;
     transition: all 0.2s ease !important;
-    color: var(--gold) !important;
 }
-
 [data-testid="collapsedControl"]:hover,
-[data-testid="stSidebarCollapseButton"]:hover,
-[data-testid="stSidebarCollapsedControl"]:hover,
-button[kind="header"]:hover,
-[data-testid="baseButton-header"]:hover {
-    background: rgba(245,166,35,0.18) !important;
+[data-testid="stSidebarCollapsedControl"]:hover {
+    background: rgba(245,166,35,0.15) !important;
     border-color: var(--gold) !important;
-    box-shadow: 0 0 24px rgba(245,166,35,0.50) !important;
-    transform: scale(1.06) !important;
+    box-shadow: 0 0 24px rgba(245,166,35,0.40) !important;
+    transform: scale(1.05) !important;
 }
-
 [data-testid="collapsedControl"] svg,
-[data-testid="stSidebarCollapseButton"] svg,
-[data-testid="stSidebarCollapsedControl"] svg,
-button[kind="header"] svg,
-[data-testid="baseButton-header"] svg {
+[data-testid="stSidebarCollapsedControl"] svg {
     fill: var(--gold) !important;
-    color: var(--gold) !important;
     width: 20px !important;
     height: 20px !important;
 }
 
-/* When sidebar is OPEN, the close-button sits inside the sidebar  */
-[data-testid="stSidebar"] [data-testid="stSidebarCollapseButton"],
-[data-testid="stSidebar"] button[kind="header"] {
-    position: absolute !important;
-    top: 12px !important;
-    right: 10px !important;
-    left: auto !important;
-    width: 34px !important;
-    height: 34px !important;
+/* Also style the open-state toggle inside the sidebar */
+button[kind="header"] {
+    background: rgba(5,8,22,0.82) !important;
+    border: 1px solid rgba(245,166,35,0.35) !important;
+    border-radius: 12px !important;
+    color: var(--gold) !important;
 }
 
 /* ══════════════════════════════════════════
@@ -281,7 +255,7 @@ button[kind="header"] svg,
    MAIN AREA
 ══════════════════════════════════════════ */
 .main .block-container {
-    padding: 3.5rem 3rem 110px !important;
+    padding: 1.8rem 3rem 110px !important;
     max-width: 1080px !important;
 }
 
@@ -292,7 +266,7 @@ button[kind="header"] svg,
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(255,255,255,0.07);
     border-radius: 18px;
-    padding: 13px 22px 13px 70px; /* extra left padding so toggle doesn't overlap */
+    padding: 13px 22px;
     margin-bottom: 2.2rem;
     display: flex;
     justify-content: space-between;
@@ -357,7 +331,7 @@ button[kind="header"] svg,
     margin-bottom: 0.45rem;
     font-family: 'Space Mono', monospace;
 }
-.metric-value       { font-size: 1.55rem; font-weight: 700; color: var(--text); }
+.metric-value        { font-size: 1.55rem; font-weight: 700; color: var(--text); }
 .metric-value.sm    { font-size: 0.90rem; }
 
 /* ── STATUS BADGE ── */
@@ -538,33 +512,6 @@ with st.sidebar:
         LANGCHAIN · CHROMA<br>HUGGINGFACE · STREAMLIT
     </div>
     """, unsafe_allow_html=True)
-
-
-# =========================================================
-# CUSTOM FLOATING SIDEBAR TOGGLE (FALLBACK / GUARANTEED)
-# This injects a manual button that ALWAYS works,
-# even if Streamlit's native one is hidden by themes/versions.
-# =========================================================
-st.markdown("""
-<script>
-const ensureToggle = () => {
-    // Try to find the native button
-    const nativeBtn =
-        window.parent.document.querySelector('[data-testid="stSidebarCollapseButton"]') ||
-        window.parent.document.querySelector('[data-testid="collapsedControl"]') ||
-        window.parent.document.querySelector('button[kind="header"]');
-
-    if (nativeBtn) {
-        nativeBtn.style.display       = 'flex';
-        nativeBtn.style.visibility    = 'visible';
-        nativeBtn.style.opacity       = '1';
-        nativeBtn.style.zIndex        = '999999';
-    }
-};
-ensureToggle();
-setInterval(ensureToggle, 500);
-</script>
-""", unsafe_allow_html=True)
 
 
 # =========================================================
