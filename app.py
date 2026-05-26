@@ -64,19 +64,8 @@ html, body, .stApp {
     font-family: 'Inter', sans-serif !important;
 }
 
-/* ── HEADER & CHROME ADJUSTMENTS (THE FIX) ── */
-/* Keep the header visible for the toggle button, but make it transparent */
-header { 
-    background: transparent !important; 
-    visibility: visible !important;
-}
-/* Hide only the unwanted toolbar items (Deploy, hamburger menu) */
-[data-testid="stToolbar"] {
-    visibility: hidden !important;
-}
-footer { 
-    visibility: hidden !important; 
-}
+/* ── HIDE DEFAULT CHROME ── */
+#MainMenu, header, footer { visibility: hidden; }
 
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar             { width: 5px; }
@@ -84,7 +73,72 @@ footer {
 ::-webkit-scrollbar-thumb:hover { background: #334155; }
 
 /* ══════════════════════════════════════════
-   SIDEBAR STYLING
+   SIDEBAR TOGGLE BUTTON — FIXED & VISIBLE
+══════════════════════════════════════════ */
+
+/* Toggle button when sidebar is COLLAPSED */
+section[data-testid="stSidebar"] > div:first-child > button:first-child,
+button[kind="header"][data-testid="baseButton-header"],
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: fixed !important;
+    top: 18px !important;
+    left: 14px !important;
+    z-index: 999999 !important;
+    background: rgba(5,8,22,0.95) !important;
+    border: 2px solid rgba(245,166,35,0.6) !important;
+    border-radius: 12px !important;
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    min-height: 48px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    box-shadow: 0 0 20px rgba(245,166,35,0.4), 0 4px 12px rgba(0,0,0,0.3) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    padding: 0 !important;
+}
+
+button[kind="header"][data-testid="baseButton-header"]:hover,
+[data-testid="collapsedControl"]:hover {
+    background: rgba(245,166,35,0.2) !important;
+    border-color: var(--gold) !important;
+    box-shadow: 0 0 30px rgba(245,166,35,0.6), 0 6px 16px rgba(0,0,0,0.4) !important;
+    transform: scale(1.08) !important;
+}
+
+/* SVG icon inside toggle */
+button[kind="header"] svg,
+[data-testid="collapsedControl"] svg {
+    fill: var(--gold) !important;
+    color: var(--gold) !important;
+    width: 24px !important;
+    height: 24px !important;
+    stroke: var(--gold) !important;
+}
+
+/* When sidebar is OPEN - position the close button inside */
+section[data-testid="stSidebar"][aria-expanded="true"] button[kind="header"] {
+    position: absolute !important;
+    top: 18px !important;
+    right: 14px !important;
+    left: auto !important;
+}
+
+/* Force override any Streamlit hiding */
+section[data-testid="stSidebar"] button[kind="header"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* ══════════════════════════════════════════
+   SIDEBAR
 ══════════════════════════════════════════ */
 [data-testid="stSidebar"] {
     background: rgba(8,12,28,0.95) !important;
@@ -93,6 +147,9 @@ footer {
 }
 [data-testid="stSidebar"] .block-container {
     padding: 1.8rem 1.1rem 2rem !important;
+}
+[data-testid="stSidebar"] > div:first-child {
+    padding-top: 3.5rem !important;
 }
 
 /* Sidebar brand */
@@ -294,7 +351,7 @@ footer {
     margin-bottom: 0.45rem;
     font-family: 'Space Mono', monospace;
 }
-.metric-value        { font-size: 1.55rem; font-weight: 700; color: var(--text); }
+.metric-value       { font-size: 1.55rem; font-weight: 700; color: var(--text); }
 .metric-value.sm    { font-size: 0.90rem; }
 
 /* ── STATUS BADGE ── */
@@ -527,4 +584,82 @@ with c2:
 
 with c3:
     model_display = st.session_state.active_model if st.session_state.active_model else llm_choice
-    st.markdown
+    st.markdown(f"""
+    <div class="metric-card">
+        <div class="metric-label">🤖 Active Model</div>
+        <div class="metric-value sm">{model_display}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+
+# =========================================================
+# CHAT SECTION
+# =========================================================
+if st.session_state.vectordb_ready:
+
+    st.markdown("""
+    <div class="status-ready">
+        <div class="pulse-dot"></div>
+        INDEX READY — ASK ANYTHING
+    </div>
+    """, unsafe_allow_html=True)
+
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    vectordb   = Chroma(persist_directory="chroma_db", embedding_function=embeddings)
+    retriever  = vectordb.as_retriever(search_kwargs={"k": 4})
+    llm        = get_llm(llm_choice)
+
+    for user_msg, bot_msg in st.session_state.chat_history:
+        st.chat_message("user",      avatar="👤").write(user_msg)
+        st.chat_message("assistant", avatar="🧠").write(bot_msg)
+
+    query = st.chat_input("Ask a question about your documents...")
+
+    if query:
+        st.chat_message("user", avatar="👤").write(query)
+
+        docs_retrieved = retriever.invoke(query)
+        context = "\n\n".join(d.page_content for d in docs_retrieved)
+
+        prompt = f"""You are a helpful AI assistant.
+Answer ONLY from the provided context.
+If the answer is not in the context, clearly state that the information is unavailable.
+
+Context:
+{context}
+
+Question:
+{query}
+"""
+        with st.spinner("Thinking..."):
+            response = llm.invoke(prompt)
+            answer   = response.content
+
+        st.chat_message("assistant", avatar="🧠").write(answer)
+        st.session_state.chat_history.append((query, answer))
+
+else:
+    st.markdown("""
+    <div class="empty-state">
+        <span class="empty-icon">📂</span>
+        <div class="empty-title">No Documents Indexed Yet</div>
+        <div class="empty-sub">
+            Upload PDF / TXT files or paste raw text in the sidebar,<br>
+            then click <strong>⚡ Process &amp; Embed</strong> to begin.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# =========================================================
+# FOOTER
+# =========================================================
+st.markdown("""
+<div class="footer">
+    © 2026 &nbsp;<strong>Shreeyansh Asati</strong>&nbsp;·
+    <a href="https://www.linkedin.com/in/shreeyansh-asati-18shreey/" target="_blank">LinkedIn</a>·
+    <a href="https://github.com/SHREEYANSHGIT" target="_blank">GitHub</a>
+</div>
+""", unsafe_allow_html=True)
