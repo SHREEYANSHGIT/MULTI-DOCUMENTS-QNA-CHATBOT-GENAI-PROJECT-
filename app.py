@@ -73,68 +73,47 @@ html, body, .stApp {
 ::-webkit-scrollbar-thumb:hover { background: #334155; }
 
 /* ══════════════════════════════════════════
-   SIDEBAR TOGGLE BUTTON — FIXED & VISIBLE
+   SIDEBAR TOGGLE BUTTON — always visible
 ══════════════════════════════════════════ */
-
-/* Toggle button when sidebar is COLLAPSED */
-section[data-testid="stSidebar"] > div:first-child > button:first-child,
-button[kind="header"][data-testid="baseButton-header"],
 [data-testid="collapsedControl"] {
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
-    position: fixed !important;
     top: 18px !important;
     left: 14px !important;
-    z-index: 999999 !important;
-    background: rgba(5,8,22,0.95) !important;
-    border: 2px solid rgba(245,166,35,0.6) !important;
+    position: fixed !important;
+    z-index: 9999 !important;
+    background: rgba(5,8,22,0.82) !important;
+    border: 1px solid rgba(245,166,35,0.35) !important;
     border-radius: 12px !important;
-    width: 48px !important;
-    height: 48px !important;
-    min-width: 48px !important;
-    min-height: 48px !important;
+    width: 42px !important;
+    height: 42px !important;
     align-items: center !important;
     justify-content: center !important;
     cursor: pointer !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-    box-shadow: 0 0 20px rgba(245,166,35,0.4), 0 4px 12px rgba(0,0,0,0.3) !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    padding: 0 !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 0 16px rgba(245,166,35,0.20) !important;
+    transition: all 0.2s ease !important;
 }
-
-button[kind="header"][data-testid="baseButton-header"]:hover,
 [data-testid="collapsedControl"]:hover {
-    background: rgba(245,166,35,0.2) !important;
+    background: rgba(245,166,35,0.15) !important;
     border-color: var(--gold) !important;
-    box-shadow: 0 0 30px rgba(245,166,35,0.6), 0 6px 16px rgba(0,0,0,0.4) !important;
-    transform: scale(1.08) !important;
+    box-shadow: 0 0 24px rgba(245,166,35,0.40) !important;
+    transform: scale(1.05) !important;
 }
-
-/* SVG icon inside toggle */
-button[kind="header"] svg,
 [data-testid="collapsedControl"] svg {
     fill: var(--gold) !important;
+    width: 20px !important;
+    height: 20px !important;
+}
+
+/* Also style the open-state toggle inside the sidebar */
+[data-testid="stSidebarCollapsedControl"],
+button[kind="header"] {
+    background: rgba(5,8,22,0.82) !important;
+    border: 1px solid rgba(245,166,35,0.35) !important;
+    border-radius: 12px !important;
     color: var(--gold) !important;
-    width: 24px !important;
-    height: 24px !important;
-    stroke: var(--gold) !important;
-}
-
-/* When sidebar is OPEN - position the close button inside */
-section[data-testid="stSidebar"][aria-expanded="true"] button[kind="header"] {
-    position: absolute !important;
-    top: 18px !important;
-    right: 14px !important;
-    left: auto !important;
-}
-
-/* Force override any Streamlit hiding */
-section[data-testid="stSidebar"] button[kind="header"] {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
 }
 
 /* ══════════════════════════════════════════
@@ -147,9 +126,6 @@ section[data-testid="stSidebar"] button[kind="header"] {
 }
 [data-testid="stSidebar"] .block-container {
     padding: 1.8rem 1.1rem 2rem !important;
-}
-[data-testid="stSidebar"] > div:first-child {
-    padding-top: 3.5rem !important;
 }
 
 /* Sidebar brand */
