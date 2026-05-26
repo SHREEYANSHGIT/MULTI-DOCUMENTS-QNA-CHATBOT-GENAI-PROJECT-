@@ -25,18 +25,14 @@ st.set_page_config(
 # =========================================================
 if "vectordb_ready" not in st.session_state:
     st.session_state.vectordb_ready = False
-
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
-
 if "active_model" not in st.session_state:
     st.session_state.active_model = ""
-
 if "doc_count" not in st.session_state:
     st.session_state.doc_count = 0
-
-if "sidebar_visible" not in st.session_state:
-    st.session_state.sidebar_visible = True
+if "sidebar_closed" not in st.session_state:
+    st.session_state.sidebar_closed = False
 
 
 # =========================================================
@@ -44,95 +40,110 @@ if "sidebar_visible" not in st.session_state:
 # =========================================================
 st.markdown("""
 <style>
-
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 /* ── ROOT ── */
 :root {
-    --bg:         #050816;
-    --surface:    #0f172a;
-    --surface2:   #111827;
-    --border:     rgba(255,255,255,0.08);
-    --gold:       #f5a623;
-    --gold-soft:  rgba(245,166,35,0.12);
-    --cyan:       #4ecdc4;
-    --text:       #f8fafc;
-    --muted:      #94a3b8;
-    --success:    #6bcb77;
+    --bg:        #050816;
+    --surface:   #0f172a;
+    --gold:      #f5a623;
+    --gold-soft: rgba(245,166,35,0.12);
+    --cyan:      #4ecdc4;
+    --text:      #f8fafc;
+    --muted:     #94a3b8;
+    --success:   #6bcb77;
+    --border:    rgba(255,255,255,0.08);
 }
 
 /* ── APP BACKGROUND ── */
 html, body, .stApp {
     background:
-        radial-gradient(circle at top left,    #172554 0%, transparent 28%),
-        radial-gradient(circle at bottom right, #581c87 0%, transparent 28%),
+        radial-gradient(circle at top left,     #172554 0%, transparent 28%),
+        radial-gradient(circle at bottom right,  #581c87 0%, transparent 28%),
         linear-gradient(135deg, #050816 0%, #0b1120 100%) !important;
     background-attachment: fixed !important;
     color: var(--text) !important;
     font-family: 'Inter', sans-serif !important;
 }
 
-/* ── HIDE STREAMLIT CHROME ── */
+/* ── HIDE DEFAULT CHROME ── */
 #MainMenu, header, footer { visibility: hidden; }
 
 /* ── SCROLLBAR ── */
-::-webkit-scrollbar              { width: 5px; }
-::-webkit-scrollbar-thumb        { background: #1e293b; border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover  { background: #334155; }
+::-webkit-scrollbar             { width: 5px; }
+::-webkit-scrollbar-thumb       { background: #1e293b; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #334155; }
 
 /* ══════════════════════════════════════════
-   SIDEBAR TOGGLE BUTTON
+   SIDEBAR TOGGLE BUTTON — always visible
 ══════════════════════════════════════════ */
-.sidebar-toggle {
-    position: fixed;
-    left: 20px;
-    top: 20px;
-    z-index: 999;
-    background: linear-gradient(135deg, #f5a623 0%, #ffb703 100%);
-    border: none;
-    border-radius: 12px;
-    padding: 10px 16px;
-    font-family: 'Space Mono', monospace;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.10em;
-    text-transform: uppercase;
-    color: #050816;
-    cursor: pointer;
-    transition: all 0.22s ease;
-    box-shadow: 0 0 18px rgba(245,166,35,0.35);
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    top: 18px !important;
+    left: 14px !important;
+    position: fixed !important;
+    z-index: 9999 !important;
+    background: rgba(5,8,22,0.82) !important;
+    border: 1px solid rgba(245,166,35,0.35) !important;
+    border-radius: 12px !important;
+    width: 42px !important;
+    height: 42px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 0 16px rgba(245,166,35,0.20) !important;
+    transition: all 0.2s ease !important;
 }
-.sidebar-toggle:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0 28px rgba(245,166,35,0.55);
+[data-testid="collapsedControl"]:hover {
+    background: rgba(245,166,35,0.15) !important;
+    border-color: var(--gold) !important;
+    box-shadow: 0 0 24px rgba(245,166,35,0.40) !important;
+    transform: scale(1.05) !important;
+}
+[data-testid="collapsedControl"] svg {
+    fill: var(--gold) !important;
+    width: 20px !important;
+    height: 20px !important;
+}
+
+/* Also style the open-state toggle inside the sidebar */
+[data-testid="stSidebarCollapsedControl"],
+button[kind="header"] {
+    background: rgba(5,8,22,0.82) !important;
+    border: 1px solid rgba(245,166,35,0.35) !important;
+    border-radius: 12px !important;
+    color: var(--gold) !important;
 }
 
 /* ══════════════════════════════════════════
-   SIDEBAR
+   SIDEBAR - Fixed closing behavior
 ══════════════════════════════════════════ */
 [data-testid="stSidebar"] {
-    background: rgba(10,15,30,0.92) !important;
+    background: rgba(8,12,28,0.95) !important;
     border-right: 1px solid rgba(245,166,35,0.12) !important;
-    transition: transform 0.3s ease !important;
+    backdrop-filter: blur(20px) !important;
+    transition: transform 0.3s ease-in-out !important;
 }
 
-[data-testid="stSidebar"] > div:first-child {
-    padding: 0 !important;
+/* Ensure sidebar collapses properly */
+[data-testid="stSidebar"][aria-expanded="false"] {
+    transform: translateX(-100%) !important;
+    margin-left: -300px !important;
+    width: 0 !important;
+    overflow: hidden !important;
 }
 
 [data-testid="stSidebar"] .block-container {
     padding: 1.8rem 1.1rem 2rem !important;
 }
 
-/* Hide sidebar */
-[data-testid="stSidebar"][aria-expanded="false"] {
-    transform: translateX(-100%) !important;
-}
-
 /* Sidebar brand */
 .sb-brand {
     font-family: 'Space Mono', monospace;
-    font-size: 0.65rem;
+    font-size: 0.63rem;
     letter-spacing: 0.22em;
     text-transform: uppercase;
     color: var(--gold);
@@ -140,74 +151,64 @@ html, body, .stApp {
 }
 .sb-title {
     font-family: 'Space Mono', monospace;
-    font-size: 1.1rem;
+    font-size: 1.08rem;
     font-weight: 700;
     color: var(--text);
-    margin-bottom: 1.8rem;
+    margin-bottom: 1.6rem;
     line-height: 1.3;
 }
-
-/* Section label */
 .sb-label {
-    font-size: 0.67rem;
+    font-size: 0.65rem;
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--muted);
     font-family: 'Space Mono', monospace;
-    margin: 1.1rem 0 0.45rem;
+    margin: 1.1rem 0 0.4rem;
     display: block;
 }
 
 /* ── FILE UPLOADER ── */
 [data-testid="stFileUploader"] {
-    background: rgba(255,255,255,0.04) !important;
+    background: rgba(255,255,255,0.03) !important;
     border: 1.5px dashed rgba(245,166,35,0.30) !important;
     border-radius: 14px !important;
-    padding: 6px 10px !important;
-    transition: border-color 0.2s !important;
+    padding: 4px 8px !important;
+    transition: all 0.2s !important;
 }
 [data-testid="stFileUploader"]:hover {
     border-color: var(--gold) !important;
-    background: rgba(245,166,35,0.05) !important;
+    background: rgba(245,166,35,0.04) !important;
 }
-[data-testid="stFileUploader"] label {
+[data-testid="stFileUploader"] label,
+[data-testid="stFileUploaderDropzoneInstructions"] {
     color: var(--muted) !important;
     font-size: 0.82rem !important;
 }
-[data-testid="stFileUploaderDropzoneInstructions"] {
-    color: var(--muted) !important;
-}
-[data-testid="stFileUploaderDropzone"] {
-    background: transparent !important;
-}
 
 /* ── TEXTAREA ── */
+.stTextArea label {
+    color: var(--muted) !important;
+    font-size: 0.82rem !important;
+}
 .stTextArea textarea {
     background: rgba(255,255,255,0.04) !important;
     border: 1.5px solid rgba(255,255,255,0.10) !important;
     border-radius: 14px !important;
     color: var(--text) !important;
     font-family: 'Inter', sans-serif !important;
-    font-size: 0.88rem !important;
+    font-size: 0.87rem !important;
     caret-color: var(--gold) !important;
     transition: border-color 0.2s, box-shadow 0.2s !important;
-    padding: 10px 14px !important;
 }
 .stTextArea textarea:focus {
     border-color: var(--gold) !important;
     box-shadow: 0 0 0 3px rgba(245,166,35,0.14) !important;
     outline: none !important;
 }
-.stTextArea textarea::placeholder {
-    color: #475569 !important;
-}
-.stTextArea label {
-    color: var(--muted) !important;
-    font-size: 0.82rem !important;
-}
+.stTextArea textarea::placeholder { color: #3d5068 !important; }
 
 /* ── SELECTBOX ── */
-.stSelectbox > label {
+.stSelectbox label {
     color: var(--muted) !important;
     font-size: 0.82rem !important;
 }
@@ -216,50 +217,47 @@ html, body, .stApp {
     border: 1.5px solid rgba(255,255,255,0.10) !important;
     border-radius: 14px !important;
     color: var(--text) !important;
-    font-size: 0.88rem !important;
+    font-size: 0.87rem !important;
     transition: border-color 0.2s !important;
 }
 .stSelectbox [data-baseweb="select"] > div:first-child:hover {
     border-color: var(--gold) !important;
 }
-/* Dropdown menu */
 [data-baseweb="popover"] [data-baseweb="menu"] {
-    background: #0f172a !important;
+    background: #0d1526 !important;
     border: 1px solid rgba(245,166,35,0.20) !important;
     border-radius: 14px !important;
 }
 [data-baseweb="popover"] li {
     color: var(--text) !important;
-    font-size: 0.88rem !important;
+    font-size: 0.87rem !important;
 }
 [data-baseweb="popover"] li:hover {
     background: rgba(245,166,35,0.10) !important;
 }
 
-/* ── BUTTON ── */
+/* ── PROCESS BUTTON ── */
 .stButton > button {
     width: 100% !important;
     border: none !important;
     border-radius: 14px !important;
-    padding: 0.78rem 1rem !important;
+    padding: 0.80rem 1rem !important;
     font-family: 'Space Mono', monospace !important;
-    font-size: 0.78rem !important;
+    font-size: 0.76rem !important;
     font-weight: 700 !important;
     letter-spacing: 0.10em !important;
     text-transform: uppercase !important;
     color: #050816 !important;
     background: linear-gradient(135deg, #f5a623 0%, #ffb703 100%) !important;
-    box-shadow: 0 0 18px rgba(245,166,35,0.35), 0 0 40px rgba(245,166,35,0.10) !important;
+    box-shadow: 0 0 18px rgba(245,166,35,0.30), 0 0 40px rgba(245,166,35,0.10) !important;
     transition: all 0.22s ease !important;
-    margin-top: 0.4rem !important;
+    margin-top: 0.3rem !important;
 }
 .stButton > button:hover {
     transform: translateY(-2px) !important;
     box-shadow: 0 0 28px rgba(245,166,35,0.55), 0 0 60px rgba(245,166,35,0.18) !important;
 }
-.stButton > button:active {
-    transform: translateY(0) !important;
-}
+.stButton > button:active { transform: translateY(0) !important; }
 
 /* ══════════════════════════════════════════
    MAIN AREA
@@ -269,9 +267,15 @@ html, body, .stApp {
     max-width: 1080px !important;
 }
 
+/* Adjust main content when sidebar is closed */
+[data-testid="stSidebar"][aria-expanded="false"] ~ .main .block-container {
+    margin-left: 0 !important;
+    padding-left: 3rem !important;
+}
+
 /* ── TOPBAR ── */
 .topbar {
-    background: rgba(5,8,22,0.60);
+    background: rgba(5,8,22,0.58);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(255,255,255,0.07);
@@ -300,15 +304,15 @@ html, body, .stApp {
     border: 1px solid rgba(245,166,35,0.28);
     border-radius: 999px;
     color: var(--gold);
-    font-size: 0.70rem;
+    font-size: 0.68rem;
     letter-spacing: 0.16em;
     font-family: 'Space Mono', monospace;
     margin-bottom: 1.2rem;
 }
 .hero h1 {
-    font-size: 3.2rem;
+    font-size: 3.1rem;
     font-weight: 800;
-    line-height: 1.05;
+    line-height: 1.06;
     margin: 0 0 1rem;
     background: linear-gradient(90deg, #ffffff 30%, #f5a623 100%);
     -webkit-background-clip: text;
@@ -318,8 +322,8 @@ html, body, .stApp {
 .hero p {
     color: var(--muted);
     line-height: 1.8;
-    font-size: 0.97rem;
-    max-width: 680px;
+    font-size: 0.96rem;
+    max-width: 660px;
     margin: 0;
 }
 
@@ -328,26 +332,21 @@ html, body, .stApp {
     background: rgba(17,24,39,0.55);
     border: 1px solid rgba(255,255,255,0.07);
     border-radius: 20px;
-    padding: 1.2rem 1.3rem;
+    padding: 1.15rem 1.3rem;
     backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
     transition: border-color 0.2s;
 }
 .metric-card:hover { border-color: rgba(245,166,35,0.25); }
 .metric-label {
     color: var(--muted);
-    font-size: 0.72rem;
+    font-size: 0.70rem;
     text-transform: uppercase;
     letter-spacing: 0.10em;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.45rem;
     font-family: 'Space Mono', monospace;
 }
-.metric-value {
-    font-size: 1.55rem;
-    font-weight: 700;
-    color: var(--text);
-}
-.metric-value.sm { font-size: 0.92rem; }
+.metric-value       { font-size: 1.55rem; font-weight: 700; color: var(--text); }
+.metric-value.sm    { font-size: 0.90rem; }
 
 /* ── STATUS BADGE ── */
 .status-ready {
@@ -359,15 +358,14 @@ html, body, .stApp {
     background: rgba(107,203,119,0.12);
     border: 1px solid rgba(107,203,119,0.25);
     color: var(--success);
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     font-weight: 700;
     font-family: 'Space Mono', monospace;
     letter-spacing: 0.06em;
     margin-bottom: 1.4rem;
 }
 .pulse-dot {
-    width: 9px;
-    height: 9px;
+    width: 9px; height: 9px;
     border-radius: 50%;
     background: var(--success);
     box-shadow: 0 0 10px var(--success);
@@ -391,13 +389,11 @@ html, body, .stApp {
     transform: translateY(-2px) !important;
     border-color: rgba(245,166,35,0.18) !important;
 }
-/* user bubble */
 [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
     background: linear-gradient(135deg,
         rgba(245,166,35,0.13) 0%,
         rgba(245,166,35,0.04) 100%) !important;
 }
-/* assistant bubble */
 [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-assistant"]) {
     background: rgba(255,255,255,0.025) !important;
 }
@@ -422,19 +418,10 @@ html, body, .stApp {
 }
 
 /* ── ALERTS ── */
-[data-testid="stAlert"] {
-    border-radius: 14px !important;
-    font-size: 0.88rem !important;
-}
-
-/* ── SPINNER ── */
-.stSpinner > div { border-top-color: var(--gold) !important; }
+[data-testid="stAlert"] { border-radius: 14px !important; font-size: 0.88rem !important; }
 
 /* ── EMPTY STATE ── */
-.empty-state {
-    text-align: center;
-    padding: 5rem 2rem 3rem;
-}
+.empty-state { text-align: center; padding: 5rem 2rem 3rem; }
 .empty-icon {
     font-size: 5rem;
     display: block;
@@ -442,20 +429,11 @@ html, body, .stApp {
     animation: float 4s ease-in-out infinite;
 }
 @keyframes float {
-    0%, 100% { transform: translateY(0);    }
+    0%, 100% { transform: translateY(0);     }
     50%       { transform: translateY(-14px); }
 }
-.empty-title {
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: var(--text);
-    margin-bottom: 0.55rem;
-}
-.empty-sub {
-    color: var(--muted);
-    line-height: 1.8;
-    font-size: 0.9rem;
-}
+.empty-title { font-size: 1.15rem; font-weight: 700; color: var(--text); margin-bottom: 0.55rem; }
+.empty-sub   { color: var(--muted); line-height: 1.8; font-size: 0.9rem; }
 
 /* ── FOOTER ── */
 .footer {
@@ -464,7 +442,7 @@ html, body, .stApp {
     width: 100%;
     text-align: center;
     padding: 12px 0 8px;
-    font-size: 0.80rem;
+    font-size: 0.78rem;
     color: #475569;
     background: linear-gradient(to top, rgba(5,8,22,0.98) 55%, transparent);
     backdrop-filter: blur(6px);
@@ -472,126 +450,112 @@ html, body, .stApp {
     font-family: 'Space Mono', monospace;
     letter-spacing: 0.04em;
 }
-.footer a {
-    color: var(--gold);
-    text-decoration: none;
-    margin: 0 9px;
-    transition: color 0.2s;
-}
+.footer a { color: var(--gold); text-decoration: none; margin: 0 9px; transition: color 0.2s; }
 .footer a:hover { color: var(--cyan); }
 
-/* ── DIVIDER ── */
-hr {
-    border: none !important;
-    border-top: 1px solid rgba(255,255,255,0.06) !important;
-    margin: 1.6rem 0 !important;
-}
-
 </style>
+
+<script>
+// JavaScript to handle sidebar state changes
+document.addEventListener('DOMContentLoaded', function() {
+    // Function to check sidebar state
+    function checkSidebarState() {
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        if (sidebar) {
+            const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
+            // You can add any additional logic here if needed
+        }
+    }
+    
+    // Observe sidebar for changes
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.attributeName === 'aria-expanded') {
+                checkSidebarState();
+            }
+        });
+    });
+    
+    const sidebar = document.querySelector('[data-testid="stSidebar"]');
+    if (sidebar) {
+        observer.observe(sidebar, { attributes: true });
+        checkSidebarState();
+    }
+});
+</script>
 """, unsafe_allow_html=True)
 
 
 # =========================================================
-# SIDEBAR TOGGLE BUTTON
-# =========================================================
-def toggle_sidebar():
-    st.session_state.sidebar_visible = not st.session_state.sidebar_visible
-
-if st.button("📂 Show Upload Panel", key="toggle_sidebar", help="Show/hide file upload panel"):
-    toggle_sidebar()
-    st.rerun()
-
-# =========================================================
 # SIDEBAR
 # =========================================================
-if st.session_state.sidebar_visible:
-    with st.sidebar:
+with st.sidebar:
 
-        # Brand
-        st.markdown("""
-        <div class="sb-brand">Document Intelligence</div>
-        <div class="sb-title">Knowledge<br>Ingestion</div>
-        """, unsafe_allow_html=True)
+    st.markdown("""
+    <div class="sb-brand">Document Intelligence</div>
+    <div class="sb-title">Knowledge<br>Ingestion</div>
+    """, unsafe_allow_html=True)
 
-        # ── File upload ──
-        st.markdown('<span class="sb-label">📎 Upload Files</span>', unsafe_allow_html=True)
-        files = st.file_uploader(
-            "Upload PDF or TXT",
-            type=["pdf", "txt"],
-            accept_multiple_files=True,
-            label_visibility="visible",
-            key="file_uploader"
-        )
+    # ── File upload ──
+    st.markdown('<span class="sb-label">📎 Upload Files</span>', unsafe_allow_html=True)
+    files = st.file_uploader(
+        "Upload PDF or TXT",
+        type=["pdf", "txt"],
+        accept_multiple_files=True,
+        label_visibility="collapsed",
+    )
 
-        # ── Paste text ──
-        st.markdown('<span class="sb-label">✍️ Paste Text</span>', unsafe_allow_html=True)
-        manual_text = st.text_area(
-            "Or paste raw text here",
-            placeholder="Paste any raw text content...",
-            height=130,
-            label_visibility="visible",
-            key="manual_text"
-        )
+    # ── Paste text ──
+    st.markdown('<span class="sb-label">✍️ Paste Text</span>', unsafe_allow_html=True)
+    manual_text = st.text_area(
+        "Or paste raw text here",
+        placeholder="Paste any raw text content...",
+        height=130,
+        label_visibility="collapsed",
+    )
 
-        # ── Model selector ──
-        st.markdown('<span class="sb-label">🤖 Select Model</span>', unsafe_allow_html=True)
-        llm_choice = st.selectbox(
-            "Choose your LLM",
-            options=[
-                "llama-3.1-8b-instant",
-                "qwen3-32b",
-                "gpt-oss-120b",
-                "gemini-2.5-flash-lite",
-                "gemini-2.5-flash",
-            ],
-            label_visibility="visible",
-            key="model_selector"
-        )
+    # ── Model selector ──
+    st.markdown('<span class="sb-label">🤖 Select Model</span>', unsafe_allow_html=True)
+    llm_choice = st.selectbox(
+        "Choose your LLM",
+        options=[
+            "llama-3.1-8b-instant",
+            "qwen3-32b",
+            "gpt-oss-120b",
+            "gemini-2.5-flash-lite",
+            "gemini-2.5-flash",
+        ],
+        label_visibility="collapsed",
+    )
 
-        st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-        # ── Process button ──
-        if st.button("⚡ Process & Embed", key="process_button"):
-            if not files and not manual_text.strip():
-                st.warning("⚠️ Upload files or paste text first.")
-            else:
-                with st.spinner("Building vector database..."):
-                    if os.path.exists("chroma_db"):
-                        shutil.rmtree("chroma_db", ignore_errors=True)
+    if st.button("⚡ Process & Embed"):
+        if not files and not manual_text.strip():
+            st.warning("⚠️ Upload files or paste text first.")
+        else:
+            with st.spinner("Building vector database..."):
+                if os.path.exists("chroma_db"):
+                    shutil.rmtree("chroma_db", ignore_errors=True)
+                docs = load_files(files, manual_text)
+                create_vector_db(docs)
+                st.session_state.vectordb_ready = True
+                st.session_state.chat_history   = []
+                st.session_state.active_model   = llm_choice
+                st.session_state.doc_count      = len(docs)
+            st.success("✅ Vector database ready!")
+            st.rerun()
 
-                    docs = load_files(files, manual_text)
-                    create_vector_db(docs)
-
-                    st.session_state.vectordb_ready = True
-                    st.session_state.chat_history   = []
-                    st.session_state.active_model   = llm_choice
-                    st.session_state.doc_count      = len(docs)
-                    
-                    # Auto-hide sidebar after processing
-                    st.session_state.sidebar_visible = False
-
-                st.success("✅ Vector database ready!")
-                st.rerun()
-
-        # Sidebar footer
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown("""
-        <div style="
-            text-align:center;
-            color:#2d3f58;
-            font-size:0.65rem;
-            font-family:'Space Mono',monospace;
-            letter-spacing:0.10em;
-            line-height:1.8;
-        ">
-            LANGCHAIN · CHROMA<br>HUGGINGFACE · STREAMLIT
-        </div>
-        """, unsafe_allow_html=True)
-else:
-    # Set default values when sidebar is hidden
-    files = []
-    manual_text = ""
-    llm_choice = st.session_state.get("active_model", "llama-3.1-8b-instant")
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style="
+        text-align:center; color:#2d3f58;
+        font-size:0.63rem; font-family:'Space Mono',monospace;
+        letter-spacing:0.10em; line-height:1.9;
+    ">
+        LANGCHAIN · CHROMA<br>HUGGINGFACE · STREAMLIT
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # =========================================================
@@ -626,11 +590,7 @@ st.markdown("""
 c1, c2, c3 = st.columns(3)
 
 with c1:
-    # Get file count from session state or current files
-    if st.session_state.sidebar_visible and 'files' in locals():
-        file_count = len(files) if files else 0
-    else:
-        file_count = 0
+    file_count = len(files) if files else 0
     st.markdown(f"""
     <div class="metric-card">
         <div class="metric-label">📄 Documents</div>
@@ -647,7 +607,7 @@ with c2:
     """, unsafe_allow_html=True)
 
 with c3:
-    model_display = st.session_state.active_model if st.session_state.active_model else "llama-3.1-8b-instant"
+    model_display = st.session_state.active_model if st.session_state.active_model else llm_choice
     st.markdown(f"""
     <div class="metric-card">
         <div class="metric-label">🤖 Active Model</div>
@@ -670,19 +630,16 @@ if st.session_state.vectordb_ready:
     </div>
     """, unsafe_allow_html=True)
 
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
-    vectordb  = Chroma(persist_directory="chroma_db", embedding_function=embeddings)
-    retriever = vectordb.as_retriever(search_kwargs={"k": 4})
-    llm       = get_llm(llm_choice)
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    vectordb   = Chroma(persist_directory="chroma_db", embedding_function=embeddings)
+    retriever  = vectordb.as_retriever(search_kwargs={"k": 4})
+    llm        = get_llm(st.session_state.active_model if st.session_state.active_model else llm_choice)
 
-    # Replay history
+    # Display chat history
     for user_msg, bot_msg in st.session_state.chat_history:
         st.chat_message("user",      avatar="👤").write(user_msg)
         st.chat_message("assistant", avatar="🧠").write(bot_msg)
 
-    # Input
     query = st.chat_input("Ask a question about your documents...")
 
     if query:
@@ -707,16 +664,15 @@ Question:
 
         st.chat_message("assistant", avatar="🧠").write(answer)
         st.session_state.chat_history.append((query, answer))
+        st.rerun()
 
 else:
-
     st.markdown("""
     <div class="empty-state">
         <span class="empty-icon">📂</span>
         <div class="empty-title">No Documents Indexed Yet</div>
         <div class="empty-sub">
-            Click the <strong>📂 Show Upload Panel</strong> button above,<br>
-            upload PDF / TXT files or paste raw text,<br>
+            Upload PDF / TXT files or paste raw text in the sidebar,<br>
             then click <strong>⚡ Process &amp; Embed</strong> to begin.
         </div>
     </div>
