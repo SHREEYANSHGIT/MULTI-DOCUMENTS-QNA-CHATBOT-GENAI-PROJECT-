@@ -6,71 +6,88 @@ from llm_router import get_llm
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
-# ---------- PAGE CONFIG ----------
-st.set_page_config(page_title="Multi-File RAG Chatbot", page_icon="🤖", layout="wide", initial_sidebar_state="expanded")
+# ---------- PAGE CONFIGURATION ----------
+st.set_page_config(
+    page_title="Multi-File RAG Chatbot", 
+    page_icon="🌌",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# ---------- CUSTOM CSS ----------
+# ---------- CUSTOM CSS (Modern UI Elements) ----------
 st.markdown("""
     <style>
-    /* Gradient Header */
-    .gradient-text {
-        background: -webkit-linear-gradient(45deg, #1DA1F2, #8A2BE2);
+    /* Gradient Title */
+    .main-title {
+        background: linear-gradient(45deg, #4A90E2, #50E3C2);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-size: 3em;
+        font-size: 3rem;
         font-weight: 800;
         text-align: center;
-        padding-bottom: 10px;
+        margin-bottom: -10px;
+        padding-top: 20px;
     }
-    .sub-text {
+    .sub-title {
         text-align: center;
-        color: #888;
-        font-size: 1.1em;
-        margin-bottom: 30px;
+        color: #A0AEC0;
+        font-size: 1.1rem;
+        font-weight: 400;
+        margin-bottom: 40px;
     }
-    /* Adjust footer to not overlap */
+    
+    /* Modern Button Styling */
+    .stButton>button {
+        width: 100%;
+        border-radius: 8px;
+        border: 1px solid #4A90E2;
+        background-color: transparent;
+        color: #4A90E2;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        background-color: #4A90E2;
+        color: white;
+        box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+        transform: translateY(-2px);
+    }
+    
+    /* Sidebar styling */
+    .css-1d391kg {
+        background-color: #1E1E2F;
+    }
+    
+    /* Adjust main padding to prevent footer overlap */
     .block-container {
         padding-bottom: 100px;
     }
-    .footer {
+    
+    /* Sleek Footer */
+    .modern-footer {
         position: fixed;
         left: 0;
         bottom: 0;
         width: 100%;
-        background-color: #1E1E1E; 
-        border-top: 1px solid #333;
-        color: #E0E0E0;
+        background: rgba(15, 15, 25, 0.8);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        color: #A0AEC0;
         text-align: center;
         font-size: 14px;
         padding: 12px;
         z-index: 100;
     }
-    .footer a {
-        color: #1DA1F2;
+    .modern-footer a {
+        color: #50E3C2;
         text-decoration: none;
         margin: 0 10px;
         font-weight: 600;
-        transition: color 0.3s ease;
+        transition: color 0.2s;
     }
-    .footer a:hover {
-        color: #0A66C2;
-        text-decoration: underline;
-    }
-    /* Stylish Button */
-    div.stButton > button:first-child {
-        background-color: #1DA1F2;
-        color: white;
-        border-radius: 8px;
-        border: none;
-        padding: 10px 24px;
-        font-weight: bold;
-        transition: all 0.3s ease;
-        width: 100%;
-    }
-    div.stButton > button:first-child:hover {
-        background-color: #0A66C2;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    .modern-footer a:hover {
+        color: #4A90E2;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -81,59 +98,70 @@ if "vectordb_ready" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# ---------- HEADER ----------
-st.markdown('<div class="gradient-text">Multi-File RAG Chatbot 🤖</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-text">Seamlessly interact with your documents • Developed by Shreeyansh Asati</div>', unsafe_allow_html=True)
-st.divider()
+# ---------- MAIN HEADER ----------
+st.markdown('<h1 class="main-title">Multi-File RAG Chatbot</h1>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">Intelligent document analysis powered by advanced LLMs</p>', unsafe_allow_html=True)
 
 # ---------- SIDEBAR ----------
 with st.sidebar:
-    st.header("⚙️ Control Panel")
-    st.markdown("Upload your knowledge base below to get started.")
+    st.image("https://cdn-icons-png.flaticon.com/512/4712/4712139.png", width=60) # Placeholder AI Icon
+    st.header("⚙️ Configuration")
+    st.markdown("Upload your knowledge base to begin.")
     
-    with st.container(border=True):
-        st.subheader("📤 Upload Data")
+    with st.container():
         files = st.file_uploader(
-            "Upload TXT or PDF files",
+            "📄 Upload TXT / PDF",
             type=["txt", "pdf"],
             accept_multiple_files=True,
-            help="You can select multiple files at once."
+            help="Select one or multiple files to analyze."
         )
         
-        with st.expander("✍️ Paste raw text instead"):
-            manual_text = st.text_area("Enter text here...", height=150)
-    
-    with st.container(border=True):
-        st.subheader("🧠 Model Selection")
-        llm_choice = st.selectbox(
-            "Choose your preferred LLM",
-            [
-                "llama-3.1-8b-instant",
-                "qwen3-32b",
-                "gpt-oss-120b",
-                "gemini-2.5-flash-lite",
-                "gemini-2.5-flash"
-            ],
-            index=4 # Defaults to gemini-2.5-flash
+        manual_text = st.text_area(
+            "✍️ Or paste raw text", 
+            placeholder="Paste any additional context here...",
+            height=120
         )
+        
+    st.divider()
     
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🚀 Process Data", type="primary"):
+    llm_choice = st.selectbox(
+        "🧠 Select Intelligence Model",
+        [
+            "llama-3.1-8b-instant",
+            "qwen3-32b",
+            "gpt-oss-120b",
+            "gemini-2.5-flash-lite",
+            "gemini-2.5-flash"
+        ],
+        help="Choose the underlying LLM to power your responses."
+    )
+    
+    st.divider()
+    
+    if st.button("🚀 Process Data & Initialize"):
         if not files and not manual_text.strip():
-            st.error("⚠️ Please upload files or paste text first.")
+            st.error("⚠️ Please upload files or paste text to proceed.")
         else:
-            with st.spinner("🔄 Processing documents & building vector database..."):
+            with st.status("Initializing Knowledge Base...", expanded=True) as status:
+                st.write("🗑️ Cleaning previous database...")
                 # 🔥 FULLY DELETE OLD EMBEDDINGS
                 if os.path.exists("chroma_db"):
                     shutil.rmtree("chroma_db", ignore_errors=True)
+                
+                st.write("📚 Loading and chunking documents...")
                 docs = load_files(files, manual_text)
+                
+                st.write("🧩 Generating vector embeddings...")
                 create_vector_db(docs)
+                
                 st.session_state.chat_history = []
                 st.session_state.vectordb_ready = True
-                st.success("✅ Knowledge base ready! You can now start chatting.")
+                status.update(label="✅ Database Ready!", state="complete", expanded=False)
+            st.toast("Initialization complete! You can now ask questions.", icon="🎉")
 
-# ---------- CHAT ----------
+# ---------- CHAT INTERFACE ----------
 if st.session_state.vectordb_ready:
+    # Initialize connection to DB and LLM
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
@@ -143,27 +171,30 @@ if st.session_state.vectordb_ready:
     )
     retriever = vectordb.as_retriever(search_kwargs={"k": 4})
     llm = get_llm(llm_choice)
-    
-    # Render previous messages
+
+    # 1. Render previous chat history so it doesn't disappear on app rerun
     if not st.session_state.chat_history:
-        st.info("👋 Welcome! Ask me anything about the documents you just uploaded.")
-        
-    for past_query, past_answer in st.session_state.chat_history:
-        with st.chat_message("user"):
-            st.write(past_query)
-        with st.chat_message("assistant"):
-            st.write(past_answer)
-            
-    # Handle new input
-    query = st.chat_input("Ask a question about your documents...")
+        st.info("👋 **Welcome!** Your documents are loaded. Ask a question below to get started.")
+    
+    for q, a in st.session_state.chat_history:
+        with st.chat_message("user", avatar="👤"):
+            st.write(q)
+        with st.chat_message("assistant", avatar="🤖"):
+            st.write(a)
+
+    # 2. Handle new user input
+    query = st.chat_input("Message the RAG Chatbot...")
     if query:
-        with st.chat_message("user"):
+        # Display user query immediately
+        with st.chat_message("user", avatar="👤"):
             st.write(query)
             
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
+        # Fetch answer with a loading spinner
+        with st.chat_message("assistant", avatar="🤖"):
+            with st.spinner("Searching documents & generating response..."):
                 docs = retriever.invoke(query)
                 context = "\n\n".join(doc.page_content for doc in docs)
+                
                 prompt = f"""
 You are a helpful assistant.
 Answer ONLY from the context below.
@@ -178,22 +209,19 @@ Question:
                 
         # Save to history
         st.session_state.chat_history.append((query, answer))
-else:
-    # Empty State UI
-    st.markdown(
-        """
-        <div style="text-align: center; padding: 50px; color: #888;">
-            <h2>⬅️ Waiting for data...</h2>
-            <p>Please upload your documents in the sidebar and click <b>Process Data</b>.</p>
-        </div>
-        """, 
-        unsafe_allow_html=True
-    )
 
-# ---------- FOOTER ----------
+else:
+    # Empty State Display
+    st.write("")
+    st.write("")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.info("👈 **Awaiting Data Input:** Upload documents in the sidebar and click **Process Data** to start chatting.")
+
+# ---------- MODERN FOOTER ----------
 st.markdown(
     """
-    <div class="footer">
+    <div class="modern-footer">
         © 2026 <b>Developed by Shreeyansh Asati</b> |
         <a href="https://www.linkedin.com/in/shreeyansh-asati-18shreey/" target="_blank">🔗 LinkedIn</a> |
         <a href="https://github.com/SHREEYANSHGIT" target="_blank">💻 GitHub</a>
